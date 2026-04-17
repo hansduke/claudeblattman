@@ -49,6 +49,7 @@ theme:
 
 nav:
   - Home: index.md
+  - "What's New": changelog.md
   - Essentials:
     - essentials/index.md
     - Chatbots Done Right: essentials/chatbots.md
@@ -57,10 +58,12 @@ nav:
     - "Teaching AI Your Voice": essentials/voice.md
     - AI Project Folders: essentials/project-folders.md
     - "Stress-Test Any Plan": workflows/plan-review-browser.md
+    - "Session Management": essentials/session-management.md
     - Voice Dictation: essentials/wispr-flow.md
     - Meeting Transcription: essentials/granola.md
-    - NotebookLM: essentials/notebooklm.md
-    - "ChatGPT vs Claude": essentials/chatgpt-vs-claude.md
+    - "Other Tools":
+      - NotebookLM: essentials/notebooklm.md
+      - "ChatGPT vs Claude": essentials/chatgpt-vs-claude.md
   - Setup:
     - setup/index.md
     - Install (Mac): toolkit/install-mac.md
@@ -75,9 +78,14 @@ nav:
     - Executive Assistant:
       - toolkit/executive-assistant.md
       - "Example: Noise Canceling": workflows/school-digest.md
-    - Project Management: workflows/project-management.md
-    - "Example: Project Dashboard": workflows/examples/project-overview-example.md
-    - "Example: Research Design": workflows/examples/research-design-example.md
+    - Project Management:
+      - workflows/project-management.md
+      - "Meeting Workflow": workflows/meeting-workflow.md
+      - "Weekly Review (Mechanics)": workflows/weekly-review.md
+      - "Sub-Project Routing": workflows/sub-project-routing.md
+      - "Example: Project Dashboard": workflows/examples/project-overview-example.md
+      - "Example: Research Design": workflows/examples/research-design-example.md
+    - "/recall (past sessions)": workflows/recall.md
     - "Tax Season":
       - tax-workflow/index.md
       - Privacy & Setup: tax-workflow/before-you-start/privacy-and-setup.md
@@ -92,6 +100,7 @@ nav:
   - Build Your Own:
     - system/index.md
     - Building Skills: system/building-skills.md
+    - "Dial-Back Discipline": build-your-own/dial-back-discipline.md
     - Agents vs Skills: system/agents-vs-skills.md
     - Continuous Improvement: system/continuous-improvement.md
     - Patterns: system/patterns.md
