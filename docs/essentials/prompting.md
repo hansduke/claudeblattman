@@ -168,6 +168,25 @@ Without tags, Claude has to figure out where your instructions end and the docum
 
 ---
 
+## Order Matters: Long Content First, Question Last
+
+When you paste a long document (a paper, a transcript, a full chapter) into the same prompt as your question, the order matters. Put the long content **at the top**. Put the question **at the bottom**.
+
+```text
+<document>
+[Full paper pasted here — possibly thousands of words]
+</document>
+
+Now: summarize the three most important methodological weaknesses
+and rank them by severity.
+```
+
+Anthropic's own evaluations show up to a 30% quality uplift from this ordering vs. putting the question first, especially with complex or multi-document inputs. The question at the bottom is the last thing the model reads — it anchors attention where you want it.
+
+This pairs with the bookend pattern: if your instructions span more than a few paragraphs, restate the core ask at the very end.
+
+---
+
 ## Break Complex Tasks into Steps
 
 A prompt that asks for a literature review, methodology section, budget narrative, and timeline will produce mediocre versions of all four. Break complex tasks into a sequence of focused prompts where each step builds on the previous one.
@@ -188,6 +207,30 @@ Chaining works because you can course-correct between steps. If Prompt 1 misses 
 
 ---
 
+## Separate Persistent Rules from Task-Specific Requests
+
+When you're building a prompt you'll reuse (a project instruction file, a template, or a skill), split the content into two layers:
+
+- **Persistent layer** — role, tone, citation rules, house style, refusal policy. Things that don't change from task to task.
+- **Task-specific layer** — the actual request, the pasted inputs, today's specifics.
+
+In a ChatGPT or Claude.ai Project, the persistent layer goes in **Project Instructions**; the task layer goes in your chat messages. In Claude Code, the persistent layer goes in `CLAUDE.md` or a skill file; the task layer is what you type at the prompt.
+
+```text
+## Persistent (lives in Project Instructions)
+You are a research assistant. Cite sources for all empirical
+claims. Never fabricate data. Tone: professional, concise.
+If uncertain, say so.
+
+## Task-specific (lives in the chat message)
+Summarize the attached paper, highlighting methodology and
+key findings.
+```
+
+Keeping these layers separate prevents "prompt mush" — where behavioral rules get tangled with per-task instructions and collide with each other. It also makes the task layer shorter and easier to iterate on without disturbing the behavioral rules.
+
+---
+
 ## Common Anti-Patterns
 
 **Vague thoroughness language.** "Be comprehensive" and "be meticulous" are empty calories. Replace with specific verbs:
@@ -199,6 +242,33 @@ Chaining works because you can course-correct between steps. If Prompt 1 misses 
 **Over-prompting.** Modern AI models are good at following instructions. You don't need `CRITICAL: YOU MUST ABSOLUTELY...` — a calm, specific directive works better. Shouting in all-caps doesn't make the AI try harder. In fact, [Anthropic's prompt engineering guide](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering) specifically warns that anti-laziness prompts like "be thorough" and "think carefully" can cause newer models to overthink and waste time.
 
 **No pushback permission.** If you want honest feedback, say so: *"Tell me directly if this approach has problems. Don't just agree with everything."* By default, AI tends toward politeness and agreement.
+
+**Negative rules when a positive example would work.** "Don't use markdown" is weaker than "Write in flowing prose with no headers or bullets." "Don't be formal" is weaker than "Use contractions. Write how a person talks, not how a corporation writes." When you must forbid something, pair the ban with a concrete positive alternative — otherwise the AI has to guess what you *do* want.
+
+---
+
+## Reusable Constraint Blocks
+
+After you've written a few prompts, you'll notice the same constraints reappearing — "cite sources," "flag uncertainty," "no preamble." Instead of retyping them, save them as named blocks you paste in when needed. This is the same idea as reusable code snippets, applied to prompts.
+
+Five blocks that cover most cases:
+
+!!! abstract "Anti-hallucination"
+    If you are uncertain about a fact, say so explicitly. Do not infer from context. Do not fabricate citations or statistics.
+
+!!! abstract "Anti-bloat"
+    Output only what was asked. No preamble, no summary of what you are about to do, no closing remarks unless specifically requested.
+
+!!! abstract "Scope guard"
+    If the task requires information not provided, state what is missing rather than proceeding with assumptions. Ask one clarifying question maximum.
+
+!!! abstract "Structured uncertainty"
+    For non-trivial outputs, append: (a) key assumptions (2–3 bullets), (b) what you verified, (c) what remains uncertain.
+
+!!! abstract "Voice preservation"
+    Do not rephrase for formality. Match the register, sentence length, and tone of the input. Use contractions where the input uses them.
+
+Keep your own list in your [Prompt Preferences](../downloads/prompt-preferences-template.md) file. When a prompt fails in a specific way, add a new block to prevent it next time. This turns prompt-writing into an accumulating library rather than repeated work.
 
 ---
 
