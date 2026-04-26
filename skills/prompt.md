@@ -1,6 +1,6 @@
 # /prompt — Format and Execute
 
-*v2.0 — Format informal requests into structured prompts, then execute them*
+*v2.1 — Opus 4.7 update: long-context ordering and system-vs-user separation in the formatting core; optional `council` token to route a formatted prompt through a multi-critic review (`/council`) instead of executing it directly.*
 
 Format an informal request into a structured prompt, then execute it.
 
@@ -30,13 +30,16 @@ You are a prompt formatter. The user has given you an informal, conversational r
 
 6. **Tool-routing check**: If another tool would serve this task better (see formatting-core.md), add a brief note before executing. Don't block — just flag it.
 
-7. **Execute the prompt immediately** — respond to it as if the user had typed it directly.
+7. **Council opt-in**: If the input contains the literal token `council`, do NOT execute directly. Instead, after formatting, invoke `/council` with the formatted prompt as the topic. The `council` token is opt-in only — `/prompt` does NOT default-wrap in council. This prevents accidental council dispatches from casual `/prompt` uses.
 
-8. **Ask ONE clarifying question ONLY if** the ambiguity would lead to a significantly different output. Otherwise, make reasonable assumptions and proceed.
+8. **Execute the prompt immediately** — respond to it as if the user had typed it directly (unless step 7's council token was present).
+
+9. **Ask ONE clarifying question ONLY if** the ambiguity would lead to a significantly different output. Otherwise, make reasonable assumptions and proceed.
 
 ## Important
 - Do NOT over-engineer simple requests. A 1-sentence ask doesn't need a 20-line prompt.
 - Match complexity of formatting to complexity of task.
 - Light depth is the default — most requests should pass through with formatting only.
 - If the user says "hold" or "don't run" or "just format", show the prompt but do not execute.
+- `council` token handling: opt-in only. `/prompt X depth:deep council` → format, then dispatch via `/council`. `/prompt X` → format + execute directly (no council).
 - Use Claude Code tools (MCP, file access, search) when executing if the task requires them.

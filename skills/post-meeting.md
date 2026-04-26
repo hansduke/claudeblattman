@@ -1,7 +1,7 @@
-<!-- post-meeting v1.0 | sanitized from private v1.3 -->
+<!-- post-meeting v1.7 | sanitized from private v1.7 -->
 # Post-Meeting Summary & Email
 
-*v1.0 — Summarize a meeting transcript and draft follow-up email with decisions, action items, and next steps.*
+*v1.7 — Recipient rule changed: default sends to the full team minus low-frequency categories (e.g., `infrequent`, `stakeholders`). Decoupled recipient-list display from send confirmation. Per-project override via `meeting_summary_recipients` in `.claude/CLAUDE.md`. Adds explicit sender choice (you vs. an AI EA identity). Includes the v1.4 hollow-transcript guard.*
 
 Summarize a meeting transcript and draft a follow-up email to attendees. Run from a project directory after a meeting.
 
@@ -56,7 +56,7 @@ Read `.claude/CLAUDE.md` at **exactly** `$(pwd)/.claude/CLAUDE.md`.
 
 Extract:
 - Transcript folder path (e.g., `transcripts/`)
-- Team roster — names + emails
+- Team roster — names + emails (and any role/category labels you use, e.g., `pis`, `research_managers`, `field_ras`, `infrequent`, `stakeholders`)
 - Project name (from header or `project_name` field)
 
 Fields may be inside markdown code fences (` ```yaml ``` `) — extract from inside fences.
@@ -99,6 +99,31 @@ Confirm BEFORE reading the full transcript.
 
 Read the selected `.txt` file. If using Granola MCP (`id:` arg), fetch via the Granola transcript API.
 
+**Hollow transcript check (REQUIRED before proceeding):**
+
+After reading the content, classify it as full or hollow.
+
+A transcript is **hollow (notes only)** if ANY of these are true:
+- Content is under 5,000 characters
+- Content starts with `###` markdown headers
+- Primary structure is bullet points with no speaker attribution lines (pattern: `Name: [speech text]` repeated throughout)
+
+A transcript is **full** if it is ≥5,000 characters AND contains conversational speaker content (back-and-forth dialogue, speaker labels, or a `.vtt` Zoom format).
+
+**If hollow:** Stop immediately. Do not proceed to Step 5. Notify:
+```
+This transcript appears to be AI-generated notes summary, not a full verbatim transcript.
+Granola (or your transcription tool) may still be processing — usually ready 1-2 hours after meeting end.
+
+Options:
+  1. Try again later — run /post-meeting again once the transcript is ready
+  2. Find the raw transcript in your transcription tool
+  3. Proceed with notes only — summary will be less accurate (not recommended)
+
+What would you like to do?
+```
+Do NOT proceed unless the user explicitly chooses option 3.
+
 ### Step 5: Summarize
 
 Generate structured summary with:
@@ -119,9 +144,30 @@ Draft in [detected language] or English? (default: English)
 
 If `nosend` argument: display summary and stop here.
 
+### Step 5.5: Sender Choice
+
+Before drafting the email, ask who should send it:
+
+```
+Send as:
+  1. You — first person, signed with your name
+  2. AI executive assistant — third person, identifies clearly as an AI assistant
+  (default: 1)
+```
+
+If sender = **You**: Use a direct, professional tone. First person ("I'll clarify...", "we agreed..."). Sign with your name.
+
+If sender = **AI executive assistant**: Open with a sentence identifying clearly as an AI assistant ("This is [Assistant Name], [Your Name]'s AI assistant. They asked me to send a summary of [today's/yesterday's] meeting. I generated this from the transcript — please flag anything I got wrong or missed."). Refer to the user in third person throughout. Sign as the AI assistant identity. Set a clear reply-to address pointing back to the user, and never sign as the user.
+
 ### Step 6: Draft Email + Confirm
 
-Build recipient list from team roster. Default: all team members who were likely on the call (infer from transcript speaker mentions). Show recipients for confirmation.
+**Recipient rule (v1.7).** Default = **everyone on the team whose work the meeting affects**, not just attendees. Concretely: full team roster from `.claude/CLAUDE.md`, **minus** any `infrequent` and `stakeholders` categories. Field RAs and team members whose action items typically come up in meetings remain standing recipients even when they were not on the call — their tasks are routinely named.
+
+If the project's `.claude/CLAUDE.md` defines `meeting_summary_recipients` (a list of category names to include or `exclude:` list), honor it as an override.
+
+**Display ≠ confirmation.** Show the recipient list once for awareness in the Step 6 preview, but the only confirmation gate is on the *send action* in Step 7. Do not treat a "yes, send" reply as endorsement of the recipient list — that reply is about sender choice only.
+
+If a teammate is clearly central to the action items but not in the team roster, surface them as a confidence flag and add them by default unless the user removes them.
 
 **Sensitivity flag:** If the meeting appears to be funder-only or leadership-only (narrow attendee list, sensitive topics):
 ```
@@ -130,13 +176,14 @@ This appears to be a [funder/leadership-only] meeting. Review summary for sensit
 
 Draft the email using a direct, professional tone. Avoid AI-sounding language ("delve," "leverage," "multifaceted," etc.).
 
-**Recency-aware opener:** Meeting today -> "today's meeting"; yesterday -> "yesterday's meeting"; older -> "our meeting on [day]".
+**Recency-aware opener:** Meeting today → "today's meeting"; yesterday → "yesterday's meeting"; older → "our meeting on [day]".
 
 ```
 --------------------
 POST-MEETING EMAIL
 --------------------
 
+From: [selected sender]
 To: [name1] <email1>, [name2] <email2>
 Subject: Meeting summary: [title]
 
@@ -205,7 +252,7 @@ Full transcript: [path to .txt file or Granola link]
 
 Let me know if I missed anything.
 
-[Your name]
+[Sender]
 
 ---
 
@@ -231,11 +278,12 @@ who missed the meeting can follow the reasoning.]
 
 ## Customization Points
 
-- **Transcript source:** Swap Granola for Otter, Fireflies, or any tool that exports `.txt` transcripts
-- **Team roster location:** Move from `.claude/CLAUDE.md` to a shared config file if you prefer
-- **Email sending:** If you have a send script configured, replace the Gmail draft step with direct sending
-- **Language:** The language check detects non-English content; customize the default for your team
-- **Transcript folder:** Change the convention in your project `.claude/CLAUDE.md`
+- **Transcript source:** Swap Granola for Otter, Fireflies, or any tool that exports `.txt` transcripts.
+- **Team roster location:** Move from `.claude/CLAUDE.md` to a shared config file if you prefer.
+- **Recipient categories:** The `infrequent`/`stakeholders` exclusion default is a convention — rename or remove the categories your team uses. The override field `meeting_summary_recipients` accepts whatever category names you define.
+- **Email sending:** If you have a send script configured, replace the Gmail draft step with direct sending.
+- **Language:** The language check detects non-English content; customize the default for your team.
+- **Transcript folder:** Change the convention in your project `.claude/CLAUDE.md`.
 
 ## Error Handling
 

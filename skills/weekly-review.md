@@ -1,5 +1,5 @@
 # Weekly Project Review
-*v1.4 — Removed todo queue check; improved transcript handling; formatting checkpoint; performance logging*
+*v1.9.1 — Stricter YAML config parsing (loud failure on malformed `.claude/CLAUDE.md`); helper scripts for multi-tab Google Doc writes (`replace-dashboard.py`, `insert-weekly-log.py`); RTF/PDF transcript normalization (`normalize-transcripts.py`); hollow-transcript handling per-meeting; document-comment processing (read, apply corrections, reply, resolve).*
 
 Generate a comprehensive weekly summary for the current research project, pulling from multiple sources.
 
@@ -9,16 +9,30 @@ This skill collects data from WhatsApp, meeting transcripts, and Gmail, then gen
 1. **Tab 1 content**: High-level project dashboard (updated directly in Google Doc)
 2. **Tab 2 content**: Detailed weekly log with thematic synthesis across all sources
 
+## Prerequisites
+
+The skill expects three env vars on each machine (set in `~/.zprofile` or equivalent):
+
+```bash
+export GOOGLE_WORKSPACE_MCP_USER_EMAIL="<your@email>"     # account to authenticate as
+export GOOGLE_WORKSPACE_MCP_CREDENTIALS_FILE="<path>"     # optional; defaults to ~/.google_workspace_mcp/credentials/<email>.json
+export WEEKLY_REVIEW_HELPERS="<path>"                     # optional; defaults to the skill's bundled scripts directory
+```
+
+If `GOOGLE_WORKSPACE_MCP_USER_EMAIL` is unset on a machine that has only one credentials file, scripts fall back to the legacy default. **Multi-account machines must set the env var explicitly** — the helper scripts do NOT silently glob-pick the first credentials file (this prevents silent wrong-account writes).
+
+The skill also requires every project `.claude/CLAUDE.md` to carry a single ` ```yaml ` block under `## Structured Config (machine-readable)`. The prefetch parser only reads fenced blocks; loose top-level YAML in prose is ignored.
+
 ## Instructions
 
 ### Step 0: Read Project Configuration
 - Read `.claude/CLAUDE.md` from the current project folder
-- Extract ALL of: project name, Google Doc ID (`google_doc_id`), team roster, WhatsApp groups (with JIDs), folder paths, `granola_folder`, `project_keywords`, `exclude_keywords`
-- Fields may appear inside ` ```yaml ` code blocks — extract values from inside code fences too
-- Strip surrounding quotes from extracted values (e.g., `"Project name"` -> `Project name`)
-- Extract `project_type` (default: "quantitative"). Look for `project_type: qualitative` in the config.
-- If `project_type` is "qualitative", use the qualitative dashboard template (see Customization Points)
-- If config is missing required fields, inform user and stop
+- Extract ALL of: project name, Google Doc ID (`google_doc_id`), team roster, WhatsApp groups (with JIDs), folder paths, `granola_folder` or `granola_folders`, `project_keywords`, `exclude_keywords`
+- Fields must appear inside ` ```yaml ` code blocks; loose top-level YAML is ignored
+- Strip surrounding quotes from extracted values
+- Extract `project_type` (default: "quantitative"). If `project_type: qualitative`, use the qualitative dashboard template
+- Extract `skip_meeting_log` (boolean, default false). If `true`, Tab 2 generation is skipped entirely
+- If config is missing required fields, **stop and surface the errors** — do not fall back to legacy mode silently
 
 ### Step 1: Determine Date Range
 - Check `10_AI_Collaboration/Weekly_Reviews/` for most recent `weekly-review-*.md` or `whatsapp-summary-*.md` file
@@ -28,42 +42,60 @@ This skill collects data from WhatsApp, meeting transcripts, and Gmail, then gen
 
 ### Step 1.5: Populate Transcripts (Optional)
 
-If you have a transcript export tool (e.g., `granola-fetch`, Otter.ai export):
+If you have a transcript export tool (e.g., `granola-fetch`, Otter export):
 
 1. Check the project's configured transcripts folder for existing files
-2. Run your transcript tool with the date range to fetch any new transcripts
-   - If the project config has a `granola_folder` field, pass it as a filter
-   - Strip surrounding quotes from folder names before passing
-3. If fetch fails, continue with existing local transcripts
+2. Fetch transcripts based on config:
+   - **If config has `granola_folders` (list):** Run your fetcher once per folder, letting your routing config dispatch destinations
+   - **If config has `granola_folder` (single string):** Run with that folder name
+   - **If neither field exists:** Skip and continue with existing transcripts
+   - Strip surrounding quotes from folder names before passing to CLI
+3. **Normalize transcripts (v1.9 — fixes RTF/PDF handling).** Run the bundled `normalize-transcripts.py`:
+   ```bash
+   python3 [skill-bundled-scripts]/normalize-transcripts.py \
+     --folder "[transcripts_folder]" --json-output --apply
+   ```
+   This converts any `.rtf` (via `textutil`) or `.pdf` (via `pdftotext`) for which there's no full `.txt` sibling, archives the originals, and replaces hollow `.txt` stubs when a converted sidecar is available. The script is idempotent and a no-op when there's nothing to do.
+4. Do NOT prompt for confirmation — transcript fetching and normalization are non-destructive.
 
 ### Step 2: Collect Data (with graceful degradation)
 
 **2a. WhatsApp Messages**
 - For each group in `whatsapp_groups`:
   - Search for group using WhatsApp MCP (`list_chats`)
-  - **CRITICAL**: Do NOT rely on `list_chats` metadata for last message dates — metadata is often stale
-  - ALWAYS fetch actual messages using `list_messages` regardless of what metadata shows
+  - Do NOT rely on `list_chats` metadata for last-message dates — metadata is often stale
+  - ALWAYS fetch actual messages using `list_messages` regardless of metadata
   - Filter to messages within date range
-- If WhatsApp MCP fails on first attempt: retry once (transient connection failures are common). If still unavailable: Note "WhatsApp unavailable - skipped" and continue
+- If WhatsApp MCP fails: retry once. If still unavailable: Note "WhatsApp unavailable - skipped" and continue
 - Save raw messages to `10_AI_Collaboration/Weekly_Reviews/whatsapp-summary-[date].md`
 
 **2b. Meeting Transcripts**
-- Read all transcript files from the configured transcripts folder
-- Support multiple formats: Granola JSON, manual markdown, Zoom .vtt files
-- Parse meeting date, attendees, and content from each
-- If no new transcripts: Note "No new transcripts this period"
+
+Read all transcript files from the configured transcripts folder. Support multiple formats: Granola export, manual markdown, Zoom `.vtt` files.
+
+**Hollow transcript check (apply per-transcript):**
+
+After reading each transcript, classify it before using it:
+- **FULL**: ≥5,000 characters AND contains conversational speaker content (dialogue lines, speaker labels, or `.vtt` Zoom format)
+- **HOLLOW**: <5,000 characters OR content starts with `###` markdown headers OR primary structure is bullet points with no speaker attribution
+
+For each hollow transcript:
+- Note it in Data Source Alerts: "[Meeting name] ([date]): AI notes only — full transcript not yet processed. Detailed meeting record omitted."
+- Do NOT include hollow transcripts in Detailed Meeting Records. Use only for background context.
+
+**If ALL transcripts in the period are hollow AND there are no other substantive sources:** Stop and ask the user whether to retry later or proceed without detailed meeting records.
 
 **2c. Gmail Threads**
 - **Date range**: Same as other sources
 - **Filter criteria** (emails must match at least one):
   - Sender OR recipient matches any team member email in roster
-  - Subject or body contains project keywords from `project_keywords` list in config
-- **Exclusions**: Automated emails, calendar invites (.ics), newsletters, bulk mail; threads matching `exclude_keywords`
-- **Grouping**: Group by thread to preserve conversation context
+  - Subject or body contains project keywords from `project_keywords`
+- **Exclusions**: Automated emails, calendar invites (`.ics`), newsletters, bulk mail; threads matching `exclude_keywords`
+- **Gmail Retrieval Strategy**: Use individual `get_gmail_message_content` calls (avoid batch size limits). If batch fails: fall back to individual fetches
 - **Feedback loop**: At end of Gmail section, list included/excluded counts for noise control
 - If Gmail MCP unavailable: Note "Gmail unavailable - skipped" and continue
 
-**2d. Sensitive Content Filtering (CRITICAL)**
+**2d. Sensitive Content Filtering**
 
 The weekly summary may be shared with the full team. Screen for and exclude sensitive content from ALL sources:
 
@@ -80,7 +112,7 @@ When in doubt: Omit specific sensitive content and note "[Some content omitted �
 
 ### Step 2e: Verify Key Metrics Against Authoritative Sources
 
-**Before generating content, verify all quantitative claims.**
+**Verify all quantitative claims against authoritative sources before generating content.**
 
 Priority order for factual claims:
 1. **Research Design and Progress document** (if maintained) — check for verified figures
@@ -91,12 +123,31 @@ Watch for red flags: round numbers, hedged statements, conflicting numbers, numb
 
 ### Step 2f: Read Previous Dashboard as Baseline
 
-**The Project Status Dashboard is a LIVING DOCUMENT.**
+**The Project Status Dashboard is a living document — read current state before writing.**
 
 1. Read the current dashboard content from the Google Doc (Tab 1)
 2. This is your BASELINE — not a blank slate
 3. PRESERVE previous content unless explicitly superseded, factually outdated, or explicitly removed by user
 4. MODIFY existing sections with new information; ADD new items; REMOVE only when completed/superseded
+
+### Step 2g: Process Google Doc Comments
+
+Read unresolved comments and apply corrections before synthesis.
+
+1. Call `mcp__google_workspace__read_document_comments` on the project's Google Doc
+2. Filter to **unresolved comments only** (skip any marked `[RESOLVED]`)
+3. For each unresolved comment, classify based on content:
+   - **Correction**: contains "should be", a number, "wrong", "change to", "actually", "not X but Y", or a clear factual fix. Apply it.
+   - **Question/ambiguous**: contains "?", "should we", "is this right", or intent is unclear. Surface in Step 7 output.
+4. **Apply corrections**:
+   - Tab 1 comments: incorporate into the dashboard baseline (modify before synthesis)
+   - Tab 2 comments: apply as direct edits to the Google Doc during Step 6
+5. **Reply + resolve** each applied correction: reply with "Applied in weekly review [DATE]. [Brief description of change]." then resolve via `resolve_document_comment`
+6. If classification is ambiguous, default to **question** (surface to user rather than misapply)
+7. If `read_document_comments` fails: note "Comments unavailable — skipped" and continue
+8. If zero unresolved comments: no output, no additional calls — move on
+
+**Note:** The API returns comments across all tabs. Use the comment's anchor text to determine which tab/section it belongs to.
 
 ### Step 3: Synthesize
 
@@ -110,11 +161,11 @@ Watch for red flags: round numbers, hedged statements, conflicting numbers, numb
 **Priority-Related Content Detection**: Watch for "strategic priority", "operational", "critical path", "green/yellow/red", "urgent", "success factor" language. Note status changes.
 
 **FORMATTING RULES**:
-- **NO MARKDOWN TABLES** — use bullet/sub-bullet format for ALL structured data
+- No markdown tables — use bullet/sub-bullet format for all structured data
 - Bold labels followed by content on same line or as sub-bullets
-- **ALWAYS bold team member names** throughout both Tab 1 and Tab 2 (do NOT use `**` markdown markers in the text — track bold ranges separately and apply formatting via the Google Docs API)
-- **Do NOT include** direct quotes. Paraphrase instead.
-- **ASCII emoji placeholders**: Use `[RED]`, `[GREEN]`, `[YELLOW]` instead of real emoji in generated text. Real emoji are supplementary-plane Unicode that break Google Docs index calculations. They are swapped to real emoji via `find_and_replace_doc` after all content is written.
+- Bold team member names throughout both Tab 1 and Tab 2 (track bold ranges separately; do not embed `**` markdown markers in the text — formatting is applied via API)
+- Paraphrase rather than quoting. Do not include direct quotes or "Key Quotes" sections.
+- **ASCII emoji placeholders**: Use `[RED]`, `[GREEN]`, `[YELLOW]` instead of real emoji (red/green/yellow circles) in generated text. Real emoji break Google Docs index calculations. They are swapped to real emoji in Phase 5.
 
 **Visual Separators**:
 - Between weekly summaries: heavy double-line separator
@@ -130,7 +181,9 @@ Watch for red flags: round numbers, hedged statements, conflicting numbers, numb
 - Critical success factors with status (green/yellow/red)
 - Funding pipeline
 
-**Generate Tab 2 (Weekly Log)**: New entry prepended (reverse chronological). Structure:
+**If `skip_meeting_log: true`:** Skip Tab 2 generation entirely. Proceed to Step 4. Still use transcripts and WhatsApp data for Tab 1 dashboard content.
+
+**Generate Tab 2 (Weekly Log)** *(skip if `skip_meeting_log: true`)*: New entry prepended (reverse chronological). Structure:
 - Date range header
 - Weekly Activity Summary (thematic synthesis across all sources)
 - Detailed Meeting Records (full summaries of each meeting)
@@ -139,59 +192,65 @@ Watch for red flags: round numbers, hedged statements, conflicting numbers, numb
 
 **Skip if `nosave` argument.**
 
-- Save to `10_AI_Collaboration/Weekly_Reviews/weekly-review-[date].md`
+- **Weekly Summary**: Save to `10_AI_Collaboration/Weekly_Reviews/weekly-review-[date].md`
 
-### Step 5: Write to Google Doc
+### Step 5: Write to Google Doc (No Review Gate)
 
 Proceed directly to Step 6 — do NOT display content in terminal for review. User reviews formatted content in the Google Doc.
 
 ### Step 6: Update Google Doc
 
+**If `skip_meeting_log: true`:** Skip the Weekly Log Prepend phase entirely.
 **If `tab1only`:** Only execute the Dashboard Replacement phase. Skip Weekly Log Prepend.
 **If `tab2only`:** Only execute the Weekly Log Prepend phase. Skip Dashboard Replacement.
 
-**First-Time Setup**: Before first use, add these three marker lines to your Google Doc (Tab 1), each on its own line:
-
-```
-=== PROJECT STATUS DASHBOARD ===
-[your dashboard content]
-=== DASHBOARD END ===
-
-=== WEEKLY SUMMARIES START ===
-[weekly logs go here, newest on top]
-```
-
-**Precondition Check**: Before any writes, verify all 3 markers exist in the doc. If `DASHBOARD END` is missing, STOP and report — do not attempt to write.
-
-**Why 3 markers**: The explicit `DASHBOARD END` marker prevents boundary corruption that occurred with the original 2-marker approach.
+**Precondition**: The Google Doc must have all 3 markers (`=== PROJECT STATUS DASHBOARD ===`, `=== DASHBOARD END ===`, `=== WEEKLY SUMMARIES START ===`). If `DASHBOARD END` is missing, STOP and report — do not fall back to the old 2-marker approach.
 
 **6-Phase Protocol**:
 1. **Preparation** — Generate text with `[RED]`/`[GREEN]`/`[YELLOW]` ASCII placeholders; strip `**` markdown bold markers (bold is applied via API, not text)
-2. **Dashboard Replacement** — Delete content between `DASHBOARD` and `DASHBOARD END` markers, then insert new dashboard text (atomic batch operation)
-3. **Verification** — Confirm all 3 markers are intact after the dashboard write
-4. **Weekly Log Prepend** — Insert new entry at `WEEKLY SUMMARIES START` marker (newest on top)
-5. **Emoji Swap** — Use `find_and_replace_doc` to replace `[RED]` with real red circle, `[GREEN]` with green circle, `[YELLOW]` with yellow circle
-6. **Formatting** — Apply heading sizes and team name bolding using API-reported indices (from `inspect_doc_structure`), not calculated offsets
+2. **Dashboard Replacement** — v1.9 — call the bundled `replace-dashboard.py`. Handles multi-tab `tabId` correctly (the MCP's `batch_update_doc` does not):
+   ```bash
+   python3 [skill-bundled-scripts]/replace-dashboard.py \
+     --document-id "$GOOGLE_DOC_ID" --tab-id "t.0" \
+     --start-marker "=== PROJECT STATUS DASHBOARD ===" \
+     --end-marker "=== DASHBOARD END ===" \
+     --content-file /tmp/dashboard-replacement-$(date +%s).txt \
+     --json-output --apply
+   ```
+   Parse the JSON output: `status` is `applied`, `noop`, or `error`. Stop on error.
+3. **Verification** — Confirm all 3 markers intact after dashboard write
+4. **Weekly Log Prepend** — v1.9 — call the bundled `insert-weekly-log.py`:
+   ```bash
+   python3 [skill-bundled-scripts]/insert-weekly-log.py \
+     --document-id "$GOOGLE_DOC_ID" --tab-id "t.0" \
+     --marker "=== WEEKLY SUMMARIES START ===" \
+     --content-file /tmp/weekly-log-$(date +%s).txt \
+     --json-output --apply
+   ```
+5. **Emoji Swap** — Use `find_and_replace_doc` (this MCP tool DOES correctly accept `tab_id`) to replace `[RED]`/`[GREEN]`/`[YELLOW]` with the real circle emoji
+6. **Formatting** — Apply heading sizes and team-name bolding using API-reported indices (from `inspect_doc_structure`), not calculated offsets
 
-**CRITICAL: Do NOT skip Phase 6 (Formatting).** The document is unreadable without proper header sizes and bold formatting. After completing Phases 1-5, you MUST proceed to Phase 6. At minimum apply: (a) Tier 2 baseline format reset (11pt non-bold on full range), then (b) Tier 1 section header formatting (16pt/14pt/12pt bold).
+**Phase 6 is required.** The document is unreadable without proper header sizes and bold formatting. After Phases 1-5, proceed to Phase 6 and apply at minimum: (a) Tier 2 baseline format reset (11pt non-bold on full range), then (b) Tier 1 section header formatting (16pt/14pt/12pt bold).
 
 **Formatting scope: FULL DOCUMENT.** Even when running `tab1only` or `tab2only`, Phase 6 formats the entire document. Formatting is idempotent.
-
-**Batch operations**: Use `batch_update_doc` to combine delete + insert + format operations into a single call — this reduces 19-29 sequential API calls to 1-3.
 
 ### Step 7: Final Confirmation
 1. Confirm: "Weekly review complete. Google Doc updated."
 2. Provide link: "Check Google Doc: [link]"
-3. Note any issues or manual fixes needed
+3. If corrections were applied from comments: list them briefly
+4. If any comments were classified as questions/ambiguous: list them with anchor text so the user can address manually
+5. Note any other issues or manual fixes needed
 
 ### Step 8: Archive Processed Transcripts
 
 After the weekly review is complete:
 
 1. Create archive folder if needed: `[project]/10_AI_Collaboration/Transcripts/archive/`
-2. Move all processed transcript files to archive
+2. Move all processed transcript files to archive (both Granola and Zoom for same meeting)
 3. Confirm: "Archived X transcript(s) to Transcripts/archive/"
 4. Note any files left behind (outside date range, unparseable)
+
+Legacy-format files are archived as-is. No automatic renaming.
 
 ## Arguments
 
@@ -211,16 +270,8 @@ After the weekly review is complete:
 /weekly-review                    # Full review, default date range
 /weekly-review days:14            # Last 14 days
 /weekly-review tab1only           # Quick dashboard update
-/weekly-review skipwhatsapp       # Skip WhatsApp if unavailable
+/weekly-review skipwhatsapp       # Skip WhatsApp if it's being flaky
 ```
-
-## Error Handling
-
-- If project config missing: "No .claude/CLAUDE.md found. Please run from a configured project folder."
-- If WhatsApp unavailable: Continue with other sources, note in output
-- If no transcripts folder: Create it, note "No transcripts folder found - created"
-- If Google Doc update fails: Save content locally, provide manual instructions
-- Flag any ambiguities: "Unclear who said X - please clarify"
 
 ## Customization Points
 
@@ -230,16 +281,27 @@ After the weekly review is complete:
 
 2. **Data sources**: The skill pulls from WhatsApp, meeting transcripts, and Gmail by default. Remove or add sources in the data collection steps to match your available integrations.
 
-3. **Google Doc format**: The 3-marker system (`=== PROJECT STATUS DASHBOARD ===`, `=== DASHBOARD END ===`, `=== WEEKLY SUMMARIES START ===`) requires markers in your Google Doc. See Step 6 for setup instructions.
+3. **Google Doc format**: The 3-marker system requires markers in your Google Doc. See Step 6 for setup.
 
-4. **Dashboard template**: The default is quantitative (metrics, sample sizes, timelines). Set `project_type: qualitative` in your project config for a qualitative dashboard (thematic analysis, interview progress, coding framework).
+4. **Dashboard template**: The default is quantitative. Set `project_type: qualitative` in your project config for a qualitative dashboard.
 
-5. **Transcript formats**: Support for Granola, Zoom .vtt, manual markdown, and informal notes. Add new format parsers as needed.
+5. **Transcript formats**: Support for Granola, Zoom `.vtt`, manual markdown, RTF/PDF normalization. Add new format parsers as needed.
+
+6. **Helper scripts location**: The bundled `normalize-transcripts.py`, `replace-dashboard.py`, and `insert-weekly-log.py` live in the skill's `scripts/` folder. Override the location with `WEEKLY_REVIEW_HELPERS` env var if you've moved them.
+
+## Error Handling
+
+- If project config missing: "No .claude/CLAUDE.md found. Please run from a configured project folder."
+- If config has malformed YAML: stop and surface the errors. Do not fall back silently.
+- If WhatsApp unavailable: Continue with other sources, note in output
+- If no transcripts folder: Create it, note "No transcripts folder found - created"
+- If Google Doc update fails: Save Tab 1 content locally, provide manual instructions
+- Flag any ambiguities: "Unclear who said X - please clarify"
 
 ## Performance Logging
 
-After completing all steps, log this run:
+After completing all steps above:
 ```bash
 echo "$(date +%Y-%m-%d),weekly-review,TOOL_CALLS,NOTES" >> ~/.claude-assistant/logs/skill-performance.csv
 ```
-Replace TOOL_CALLS with approximate count of tool uses this run. Replace NOTES with brief volume info (e.g., "3 transcripts 12 emails 2 whatsapp"). Do not skip this step.
+Replace TOOL_CALLS with your exact count. No `~` prefix. Replace NOTES with brief volume info (e.g., "3 transcripts 12 emails 2 whatsapp"). Do not skip this step.

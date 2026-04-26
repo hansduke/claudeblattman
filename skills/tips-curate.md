@@ -1,5 +1,5 @@
 # Tips Curate
-*v1.3 — 2026-02-28 — Added performance logging; fixed integration note*
+*v1.5 — Added end-of-run backlog check: prompts to invoke `/tips-integrate` when unprocessed HIGH-quality tips exceed 15. Replaces a standing biweekly calendar ritual.*
 
 Process @ToSelf emails containing Claude Code tips, AI workflow patterns, and related resources. Assess quality, extract actionable insights, and recommend what's worth keeping. Use when you say "process my tips," "curate tips," or "check @ToSelf for tips."
 
@@ -141,8 +141,24 @@ Saved [N] tips to collected-tips-log.md.
 Marked [M] emails as read.
 [K] unread remaining in @ToSelf.
 
-Run /tips-scout to generate a customized Grok search prompt for next week.
+Run /tips-scout to generate a customized search prompt for next week.
 ```
+
+### Step 4a: Backlog Check (v1.5)
+
+After reporting results, count unprocessed HIGH-quality tips since the last `/tips-integrate` run:
+
+1. Read `~/.claude-assistant/tips/integrate-state.json` → extract `last_run` field. If file or field missing, fall back to a date 30 days ago.
+2. Read `~/.claude-assistant/tips/collected-tips-log.md`.
+3. Count entries tagged `[high]` under `## YYYY-MM-DD` headings dated AFTER `last_run`.
+4. If count > 15, append one line to the report:
+   ```
+   Backlog: [N] HIGH tips logged since last /tips-integrate run ([last_run]).
+   Run /tips-integrate now? (yes/skip)
+   ```
+5. If user says "yes", invoke `/tips-integrate` in the same session. Otherwise, proceed without invoking.
+
+This replaces any standing biweekly calendar ritual for `/tips-integrate`. Adjust the threshold (default 15) to your tip flow after observing 2-3 real runs.
 
 5. **If `all` argument was given and more unread remain:** Loop back to Step 1 with the next batch. Present each batch for approval before continuing.
 
@@ -151,7 +167,7 @@ Run /tips-scout to generate a customized Grok search prompt for next week.
 ```bash
 echo "$(date +%Y-%m-%d),tips-curate,TOOL_CALLS,NOTES" >> ~/.claude-assistant/logs/skill-performance.csv
 ```
-Replace TOOL_CALLS with your approximate count of tool uses this run. Replace NOTES with brief volume info (e.g., "5-processed-3-saved"). Do not skip this step.
+Replace TOOL_CALLS with your exact count of tool uses this run. Replace NOTES with brief volume info (e.g., "5-processed-3-saved"). Do not skip this step.
 
 ## Error Handling
 
@@ -182,7 +198,8 @@ Replace TOOL_CALLS with your approximate count of tool uses this run. Replace NO
 
 ## Integration Notes
 
-- Your morning briefing skill may check for unread @ToSelf count and suggest running `/tips-curate`
-- `/tips-integrate` checks whether `/tips-curate` has been run recently and prompts if stale
-- Tips log is a single searchable file — use grep/search for topics across sessions
-- The log complements (does not replace) CLAUDE.md, MEMORY.md, or rules files — you decide if a tip warrants a config change
+- **Run `/tips-bookmarks` before `/tips-curate`** if you have it — Twitter content is richer via bookmarks (full text vs. bare URLs). This skill catches non-Twitter items (articles, newsletters, links forwarded to self).
+- Your morning briefing skill may check for unread @ToSelf count and suggest running `/tips-curate`.
+- `/tips-integrate` checks whether `/tips-curate` has been run recently and prompts if stale.
+- Tips log is a single searchable file — use grep/search for topics across sessions.
+- The log complements (does not replace) `CLAUDE.md`, `MEMORY.md`, or rules files — you decide if a tip warrants a config change.
