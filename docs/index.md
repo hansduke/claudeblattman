@@ -90,11 +90,11 @@ This site covers AI tools for knowledge work — from [chatbot prompting](essent
 
     ---
 
-    Email yourself tips and discoveries from any device. A pipeline of five skills curates them — then a five-persona council ranks the candidates and auto-applies the top three to your CLAUDE.md, skills, and rules. Your system gets better every week.
+    Tips arrive every day from X, blogs, and newsletters — a firehose. This is how I store, prioritize, and integrate them: a four-stage loop where five critics argue over each tip before any change touches CLAUDE.md, skills, or rules.
 
-    [:octicons-arrow-right-24: The Tips Pipeline](system/continuous-improvement.md)
+    [:octicons-arrow-right-24: The continuous-improvement loop](system/continuous-improvement.md)
 
--   **:material-file-document-check-outline: Tax Season Case Study** <span class="badge-teal">New</span>
+-   **:material-file-document-check-outline: Tax Season Case Study**
 
     ---
 
@@ -106,7 +106,7 @@ This site covers AI tools for knowledge work — from [chatbot prompting](essent
 
 ## What's New
 
-- **April 2026:** Session discipline, sub-project routing, the meeting loop end-to-end, weekly review, `/recall` for past-session search, dial-back prompting, plus a five-persona critic council and updates to the tips pipeline. [See the full April update →](changelog.md)
+- **April 2026:** Continuous-improvement loop documented end-to-end (firehose framing, four-stage pipeline, the five-critic council that decides what gets in). Plus session discipline, sub-project routing, the meeting loop, weekly review, `/recall` for past-session search, and dial-back prompting. [See the full April update →](changelog.md)
 - **March 2026:** Meeting prep and follow-up skills. Updated [Executive Assistant](toolkit/executive-assistant.md) workflow with daily ritual stack.
 - **February 2026:** [Tax Season](tax-workflow/index.md) case study. Nav restructure. 13 new downloadable skills in the [Skill Library](setup/skill-reference.md).
 

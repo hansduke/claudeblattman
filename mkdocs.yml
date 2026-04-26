@@ -143,6 +143,7 @@ plugins:
         essentials/folders/health.md: essentials/project-folders.md
         setup/modes.md: setup/index.md
         toolkit/skills-guide.md: setup/skill-reference.md
+        workflows/tips-pipeline.md: system/continuous-improvement.md
   - social:
       cards_layout_options:
         background_color: "#263238"

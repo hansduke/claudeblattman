@@ -26,7 +26,7 @@ Before touching cloud services, figure out where space is going on your actual h
 
 ### The Approach
 
-Create a working directory for the project. We used `~/Dropbox/Claude/Projects/File management/` so results sync across machines, but any folder works.
+Create a working directory for the project. We used `~/Dropbox/Claude/Projects/personal-and-ea-adjacent/File management/` so results sync across machines, but any folder works.
 
 Ask Claude Code to scan major directories outside your main cloud sync folder:
 

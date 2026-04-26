@@ -96,6 +96,10 @@ The two pieces I'd flagged as pending in the original Launch 2 list shipped toge
 - **`/tips-integrate` v1.2 → v2.1** — Phase 1.5 dispatches a 5-persona council (Catalog Conflict / Maintenance Tax / Compounder / First-Run / Skeptic) before generating proposals. Composite scoring is `mean(5 personas) − 0.1 × blocker_count` — additive penalty, no clamping, the council ranks but doesn't dismiss. Top 3 auto-apply, items 4–7 one-tap, items 8–15 visible with full detail. Falls back to single-critic mode when the agent file is missing. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/tips-integrate.md)
 - **`agents/proposal-critic-agent.md` (NEW publicly)** — one parameterized agent file invoked five times in parallel, each with a different persona passed in the prompt. Bundled alongside `/tips-integrate`. [Agent file →](https://github.com/chrisblattman/claudeblattman/blob/main/agents/proposal-critic-agent.md)
 
+### Continuous-improvement page consolidated
+
+The four-skill pipeline now has a single canonical page that explains how the parts fit together. Lede leads with the firehose problem (tips arrive faster than anyone can adopt them) and six concrete questions: which to adopt, where to store them, how to remember them, how to prioritize, how to get them into your workflow, how to avoid wrecking a working setup with a bad addition. The four stages (discover / curate / integrate / applied), a worked tip-to-rule-change example, the five critic personas, the actual changes the council has approved, install instructions, the tips log and learning-catalog mechanics — all in one place. [Read the page →](system/continuous-improvement.md)
+
 ---
 
 ## Launch 2 — still pending
@@ -103,7 +107,7 @@ The two pieces I'd flagged as pending in the original Launch 2 list shipped toge
 A couple of pieces still waiting.
 
 - **Voice pack system** — register overlays (core voice + proposal + public writing + email) plus a critic-agent that flags drift at the line level. Shown as a complete pack with sanitized downloads. Gated on voice-pack sanitization.
-- **Tips pipeline orchestrating page + the upstream skills** (`/tips-scout`, `/tips-bookmarks`) — the integration and the council are already public; what's left is the page that explains how the five tips skills fit together, plus shipping the upstream scout and bookmark steps. Coming as a planning pass after the rest of this update.
+- **`/tips-bookmarks`** — pulls X bookmarks via `twitter-cli` and feeds them into the curate pipeline. Still private; the merged continuous-improvement page describes the role but doesn't link a download. Sanitization gated.
 - **Prompt architecture (full page)** — the [Prompt Engineering page](essentials/prompting.md) got three new sections in the April 17 launch (long-content ordering, system-vs-user, constraint blocks). The complete page update plus the [prompt-preferences template](downloads/index.md#templates) as a paste-into-any-project download is still pending.
 
 ---
