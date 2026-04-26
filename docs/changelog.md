@@ -1,12 +1,12 @@
 ---
 hide:
   - navigation
-description: What's new on claudeblattman.com — April 2026 content update covering session discipline, sub-project routing, the meeting loop, weekly review, /recall, and dial-back prompting.
+description: What's new on claudeblattman.com — April 2026 content update covering session discipline, sub-project routing, the meeting loop, weekly review, /recall, dial-back prompting, the five-persona critic council, and the tips pipeline.
 ---
 
 # What's New — April 2026
 
-A month of workflow improvements, batched into two launches. Launch 1 is live below. Launch 2 follows in 2–3 weeks once a couple of pieces have earned their keep.
+A month of workflow improvements, batched into two launches. Launch 1 went live April 17 with the seven pages below. **Launch 2 partially shipped April 26** — the tips pipeline, the multi-critic council, and the rest of the daily-workflow skill versions are now public; the voice pack and the full prompt-architecture page are still pending.
 
 !!! tip "TL;DR"
     Three threads run through this update:
@@ -65,14 +65,46 @@ Three new sections on the [Prompt Engineering](essentials/prompting.md) page: lo
 
 ---
 
-## Launch 2 — 2–3 weeks out
+## April 26 — early Launch 2
 
-Gated on live-run validation and voice-pack sanitization. Shapes and scope may shift before publication.
+Eight skill files updated or shipped, plus one new agent. Three threads:
 
-- **Voice pack system** — register overlays (core voice + proposal + public writing + email) plus a critic-agent that flags drift at the line level. Shown as a complete pack with sanitized downloads.
-- **Build your own reviewer** — the critic-agent pattern. Starts with one critic (voice or writing), then scales to a five-persona council for adoption decisions. Minimum 3-of-5 to proceed, retry once on rate limits, synthesis in the main agent because subagents can't nest.
-- **Tips pipeline** — `/tips-scout` → `/tips-bookmarks` → `/tips-curate` → `/tips-integrate` with the five-persona council and auto-apply top three. Includes the "what broke on the first live run" section once there's real data behind it.
-- **Prompt architecture (full)** — the complete page update with the [prompt-preferences template](downloads/index.md#templates) as a download you can paste into any project.
+### Daily-workflow versions caught up
+
+The skills the meeting workflow page already references, brought to current versions on a single push.
+
+- **`/post-meeting` v1.0 → v1.7** — hollow-transcript guard, explicit sender choice (you vs. an AI EA identity), and a recipient rule that defaults to the full team minus low-frequency categories. Production-validated end-to-end on a real research-team meeting. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/post-meeting.md)
+- **`/weekly-review` v1.4 → v1.9.1** — strict YAML config parsing (loud failure on malformed `.claude/CLAUDE.md`), bundled helper scripts for multi-tab Google Doc writes, RTF/PDF transcript normalization, per-meeting hollow-transcript handling, document-comment processing. Two council reviews shaped the v1.9 series. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/weekly-review.md)
+- **`/prompt` v2.0 → v2.1** — Opus 4.7 update: long-content ordering and system-vs-user separation in the formatting core; optional `council` token to route a formatted prompt through a multi-critic review. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/prompt.md)
+- **`/tips-curate` v1.3 → v1.5** — end-of-run backlog check that prompts `/tips-integrate` when unprocessed HIGH-quality tips exceed 15. Replaces a standing biweekly calendar ritual. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/tips-curate.md)
+
+### `/done` v2.1 — sub-project routing rewritten
+
+The session-capture skill grew the most this month. The v2.x series rewrote routing to put the current working directory ahead of stale state:
+
+- **Rule 1, CWD precedence:** if you're in a sub-folder with its own `HANDOFF.md`, route there regardless of any state file. The actual workspace beats whatever was set days ago.
+- **Rule 2, fresh active state with a divergence guard:** route to `active-subproject.json` only if the state was modified in the last 24 hours (or marked permanent) AND the session topic actually overlaps with the state's task name. The token-intersection check prevents silent misroutes when state is stale or pointing somewhere irrelevant.
+- **Non-destructive fallback:** when neither rule fires, `/done` writes session content to a project-root `SESSION_LOG.md` instead of overwriting any project-root `HANDOFF.md` you maintain by hand. That destructive path is removed, not guarded.
+
+[Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/done.md)
+
+### `/council` and the tips pipeline are public
+
+The two pieces I'd flagged as pending in the original Launch 2 list shipped together because they share a dispatch pattern.
+
+- **`/council` v1.2 (NEW publicly)** — parallel critic agents + a separate synthesis pass. Hard cap of 5 critics, single-round only, never majority-votes on narrative output. The `--chef-skill` mode works out of the box (no persona files required) for skill/tool-design reviews. Default panels (plan / paper / decision / grant) require persona agent files in `~/.claude/agents/`. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/council.md)
+- **`/tips-integrate` v1.2 → v2.1** — Phase 1.5 dispatches a 5-persona council (Catalog Conflict / Maintenance Tax / Compounder / First-Run / Skeptic) before generating proposals. Composite scoring is `mean(5 personas) − 0.1 × blocker_count` — additive penalty, no clamping, the council ranks but doesn't dismiss. Top 3 auto-apply, items 4–7 one-tap, items 8–15 visible with full detail. Falls back to single-critic mode when the agent file is missing. [Skill file →](https://github.com/chrisblattman/claudeblattman/blob/main/skills/tips-integrate.md)
+- **`agents/proposal-critic-agent.md` (NEW publicly)** — one parameterized agent file invoked five times in parallel, each with a different persona passed in the prompt. Bundled alongside `/tips-integrate`. [Agent file →](https://github.com/chrisblattman/claudeblattman/blob/main/agents/proposal-critic-agent.md)
+
+---
+
+## Launch 2 — still pending
+
+A couple of pieces still waiting.
+
+- **Voice pack system** — register overlays (core voice + proposal + public writing + email) plus a critic-agent that flags drift at the line level. Shown as a complete pack with sanitized downloads. Gated on voice-pack sanitization.
+- **Tips pipeline orchestrating page + the upstream skills** (`/tips-scout`, `/tips-bookmarks`) — the integration and the council are already public; what's left is the page that explains how the five tips skills fit together, plus shipping the upstream scout and bookmark steps. Coming as a planning pass after the rest of this update.
+- **Prompt architecture (full page)** — the [Prompt Engineering page](essentials/prompting.md) got three new sections in the April 17 launch (long-content ordering, system-vs-user, constraint blocks). The complete page update plus the [prompt-preferences template](downloads/index.md#templates) as a paste-into-any-project download is still pending.
 
 ---
 

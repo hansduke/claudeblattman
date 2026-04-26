@@ -36,6 +36,7 @@ Restart Claude Code after adding new commands.
 | **Proposal Revision** | `/proposal-revise` | None | Applies reviewer/collaborator feedback to proposal drafts |
 | **Proposal Writing** | `/proposal-write` | None | Drafts funding proposals from structured inputs and project context |
 | **Meeting Follow-Up** | `/post-meeting` | Gmail MCP, Granola MCP (optional) | Extracts decisions and action items from meeting transcripts, drafts follow-up email |
+| **Multi-Critic Council** | `/council` | None (chef-skill mode); persona agents in `~/.claude/agents/` for default panels | Dispatches parallel critic agents on a topic, then runs a separate synthesis pass. Use for plan reviews, paper reviews, and decisions |
 | **Plan Review** | `/review-plan` | None (web search optional) | Structured expert critique of plans |
 | **Schedule Query** | `/schedule-query` | Calendar MCP | Checks calendar availability and drafts scheduling replies |
 | **Project Setup** | `/setup-project-management` | None | Initializes project management system for research projects |
@@ -44,7 +45,7 @@ Restart Claude Code after adding new commands.
 | **Todo Review** | `/todo-review` | None | Reviews and consolidates to-do items across configured files |
 | **Tax Guide** | `/tax-guide` | None | Personalized Q&A that assesses your tax situation and generates a document checklist, workflow plan, and filing recommendation |
 | **Tips Curate** | `/tips-curate` | Gmail MCP | Processes @ToSelf emails containing tips, quality-filters, and builds a searchable log |
-| **Tips Integrate** | `/tips-integrate` | None | Converts collected tips into concrete system improvements — direct edits or investigation tasks |
+| **Tips Integrate** | `/tips-integrate` | `agents/proposal-critic-agent.md` (optional but recommended) | Converts collected tips into concrete system improvements. 5-persona critic council ranks candidates; auto-applies top 3 |
 | **Tips Scout** | `/tips-scout` | None | Generates customized Grok DeepSearch prompt based on coverage gaps and active topics |
 | **Inbox Triage** | `/triage-inbox` | Gmail MCP | Smart email classification with label-in-inbox sweep, auto-filter creation, and heuristics Gmail filters can't replicate |
 | **Weekly Review** | `/weekly-review` | Google Docs MCP | Comprehensive weekly project summary from multiple data sources |
@@ -55,6 +56,7 @@ Restart Claude Code after adding new commands.
 |-------|-------------|-------|
 | **Writing Reviewer** | Reviews academic prose for clarity, structure, and voice | Sonnet |
 | **Methodology Reviewer** | Checks empirical claims, causal language, and identification strategy | Sonnet |
+| **Proposal Critic** | Five-persona adoption critic for skill/tool/workflow tips. Used by `/tips-integrate` Phase 1.5 (one parameterized agent file invoked five times in parallel — Catalog Conflict / Maintenance Tax / Compounder / First-Run / Skeptic) | Sonnet |
 
 ## The Prompt Bundle
 

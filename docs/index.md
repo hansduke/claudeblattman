@@ -90,7 +90,7 @@ This site covers AI tools for knowledge work — from [chatbot prompting](essent
 
     ---
 
-    Email yourself tips and discoveries from any device. Two skills curate them, then propose concrete changes to your CLAUDE.md, skills, and rules — so your system gets better every week.
+    Email yourself tips and discoveries from any device. A pipeline of five skills curates them — then a five-persona council ranks the candidates and auto-applies the top three to your CLAUDE.md, skills, and rules. Your system gets better every week.
 
     [:octicons-arrow-right-24: The Tips Pipeline](system/continuous-improvement.md)
 
@@ -102,22 +102,11 @@ This site covers AI tools for knowledge work — from [chatbot prompting](essent
 
     [:octicons-arrow-right-24: Tax Workflow](tax-workflow/index.md)
 
--   **:material-chart-box-outline: Data Analysis Co-Pilot** <span class="badge-preview">Planned</span>
-
-    ---
-
-    Using AI to write, debug, and audit statistical code in Stata, R, and Python. Replication verification, robustness checks, and the "Referee 2" pattern. In the meantime, see [AI for Economists resources](resources.md#ai-for-economists-and-researchers).
-
--   **:material-file-document-edit-outline: Research Writing** <span class="badge-preview">Planned</span>
-
-    ---
-
-    LaTeX and Overleaf workflows: drafting sections, responding to referee reports, maintaining voice consistency across co-authored papers, and version control with Claude Code.
-
 </div>
 
 ## What's New
 
+- **April 2026:** Session discipline, sub-project routing, the meeting loop end-to-end, weekly review, `/recall` for past-session search, dial-back prompting, plus a five-persona critic council and updates to the tips pipeline. [See the full April update →](changelog.md)
 - **March 2026:** Meeting prep and follow-up skills. Updated [Executive Assistant](toolkit/executive-assistant.md) workflow with daily ritual stack.
 - **February 2026:** [Tax Season](tax-workflow/index.md) case study. Nav restructure. 13 new downloadable skills in the [Skill Library](setup/skill-reference.md).
 
