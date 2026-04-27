@@ -204,6 +204,8 @@ Here's what a well-structured prompt looks like — each section labeled. Not ev
 
 For the full breakdown, see [The Anatomy of a Good Prompt](../essentials/prompting.md#the-anatomy-of-a-good-prompt) and [Match Effort to Stakes](../essentials/prompting.md#match-effort-to-stakes) on the Prompt Engineering page.
 
+**Routing a prompt through a council.** If you add the literal token `council` anywhere in the request, `/prompt` formats as usual but hands the result to [`/council`](council.md) instead of executing it. Use this when the prompt is high-stakes enough that you want parallel critics on the *answer* — a research synthesis, a draft skill, a plan whose failure mode you most fear is a single reviewer's blind spot. Most prompts don't need this; reach for it on the runs that matter.
+
 **Install (full bundle — 4 files):**
 
 !!! note "What these commands do"
@@ -249,7 +251,7 @@ For more on how modes work, see [How Claude Code Thinks](../setup/index.md#how-c
 
 ## Step 3: Stress-test with fresh eyes — `/review-plan`
 
-This is the intellectual centerpiece of the loop.
+This is the intellectual centerpiece of the loop. One fresh agent catches most of what you missed. When the stakes are higher — a grant, a paper before submission, a plan whose failure mode you most fear is a single reviewer's blind spot — escalate to [`/council`](council.md), which dispatches up to five critics in parallel and runs a separate synthesis pass. I reach for `/council` on the third revision of something that matters, not the first. `/review-plan` does the work for everything else.
 
 Claude reviewing its own plan in the same conversation is like asking someone to peer-review their own paper. It's seen all the reasoning. It knows why every decision was made. It's structurally incapable of seeing its own blind spots.
 

@@ -86,6 +86,7 @@ nav:
       - "Example: Project Dashboard": workflows/examples/project-overview-example.md
       - "Example: Research Design": workflows/examples/research-design-example.md
     - "/recall (past sessions)": workflows/recall.md
+    - "/council (parallel critics)": workflows/council.md
     - "Tax Season":
       - tax-workflow/index.md
       - Privacy & Setup: tax-workflow/before-you-start/privacy-and-setup.md
@@ -103,6 +104,7 @@ nav:
     - "Dial-Back Discipline": build-your-own/dial-back-discipline.md
     - Agents vs Skills: system/agents-vs-skills.md
     - Continuous Improvement: system/continuous-improvement.md
+    - "AI Integration (cross-vendor)": system/ai-integration.md
     - Patterns: system/patterns.md
     - "A Real CLAUDE.md": downloads/real-claude-md-example.md
   - About:

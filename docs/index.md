@@ -94,6 +94,22 @@ This site covers AI tools for knowledge work — from [chatbot prompting](essent
 
     [:octicons-arrow-right-24: The continuous-improvement loop](system/continuous-improvement.md)
 
+-   **:material-account-group-outline: Council of Critics**
+
+    ---
+
+    When one fresh agent isn't enough. `/council` dispatches up to five critics in parallel — skeptic, pre-mortem, methodologist, budget hawk — then a separate model synthesizes the raw outputs. Single round, hard cap five, no majority vote. Default panels for plans, papers, decisions, and grants.
+
+    [:octicons-arrow-right-24: The council pattern](workflows/council.md)
+
+-   **:material-merge: Cross-vendor critics**
+
+    ---
+
+    A council of five Claudes still shares one model's blind spots. Swap a seat for Codex or Gemini and dispatch them side by side from a single command. I've caught empirical errors this way that an all-Claude council waved through. Setup, flags, and a manual paste-loop for tools without CLIs.
+
+    [:octicons-arrow-right-24: AI integration](system/ai-integration.md)
+
 -   **:material-file-document-check-outline: Tax Season Case Study**
 
     ---

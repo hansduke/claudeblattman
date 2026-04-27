@@ -90,6 +90,9 @@ THE PLAN:
 
 **For high-stakes plans** (grants, major hires, large budgets): Open a second fresh chat with a modified role — *"Review this plan as a [budget analyst / regulatory expert / field operations manager]."* Different personas catch different blind spots. For maximum independence, use separate conversations rather than asking for multiple personas in one chat.
 
+!!! tip "For higher stakes, scale your critics"
+    The browser method is powerful. For genuinely high-stakes plans (multi-year grants, major hires), there's a more structured approach. In Claude Code, [`/council`](council.md) dispatches up to five fresh-context critics in parallel and synthesizes their raw outputs separately. Same logic as this page, scaled and codified.
+
 ---
 
 ## Common mistakes
