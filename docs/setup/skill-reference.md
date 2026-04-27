@@ -253,6 +253,37 @@ curl -o ~/.claude/commands/review-plan.md \
 
 ---
 
+### /council — Parallel Critics + Separate Synthesis
+`[Advanced]`
+
+**What it does:** Dispatches up to 5 critic agents in parallel on a topic, then runs a separate synthesis pass. Single round, no debate, no majority vote on narrative output. Default panels for plans, papers, decisions, and grants. `--chef-skill` mode runs out of the box (no persona files needed).
+
+**MCP dependencies:** None for Claude-only mode. Optional `--mixed codex|gemini` swaps one seat for a cross-vendor peer; requires the relevant CLI installed.
+
+**Install:**
+```bash
+curl -o ~/.claude/commands/council.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/council.md
+
+mkdir -p ~/.claude/agents
+curl -o ~/.claude/agents/proposal-critic-agent.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/agents/proposal-critic-agent.md
+```
+
+**Usage:**
+```
+/council --chef-skill file:~/path/to/skill.md   # Skill review, no setup needed
+/council --type plan <topic>                    # Plan / architecture review
+/council --type grant <topic>                   # 5-critic grant panel
+/council --mixed gemini <topic>                 # Swap one seat for Gemini
+```
+
+**Customization:** Critic / synthesis model (config block at top of `council.md`), persona library in `~/.claude/agents/`, default panel sizes.
+
+**Learn more:** [The council pattern](../workflows/council.md) · [Cross-vendor critics](../system/ai-integration.md)
+
+---
+
 ### /proposal-revise — Proposal Revision
 `[PM]`
 
@@ -535,6 +566,30 @@ curl -o ~/.claude/commands/tips-integrate-references/scanning-rules.md \
 **Customization:** Source selection, state file location (default `~/.claude-assistant/state/integrate-state.json`), target config files.
 
 **Learn more:** [Continuous Improvement](../system/continuous-improvement.md)
+
+---
+
+### /announcement-digest — Email Source Digest
+`[EA]`
+
+**What it does:** Compiles a periodic digest of high-volume announcement emails from a single labeled source (school, employer, nonprofit, professional association). Extracts what matters, skips the noise, sends a summary. Sanitized version of the school-digest workflow.
+
+**MCP dependencies:** Gmail MCP (required). Send-email.py or equivalent for sending the digest.
+
+**Install:**
+```bash
+curl -o ~/.claude/commands/announcement-digest.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/announcement-digest.md
+```
+
+**Usage:**
+```
+/announcement-digest        # Compile and send digest of new emails since last run
+```
+
+**Customization:** Source label (`@School`, `@CompanyNews`, etc.), classification rules file, recipients, frequency floor (default 2 days), message-ID TTL (default 30 days).
+
+**Learn more:** [Noise canceling: school-digest example](../workflows/school-digest.md)
 
 ---
 

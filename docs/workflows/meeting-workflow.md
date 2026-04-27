@@ -14,6 +14,9 @@ Four steps.
 
 ## 1. Before the call: `/pre-meeting-brief`
 
+!!! note "Not yet published"
+    `/pre-meeting-brief` isn't on the [Skill Library](../setup/skill-reference.md) yet — it's still being sanitized. The patterns below are portable, and the skill ships in the next batch.
+
 Run from the project folder 15–30 minutes before a meeting. The skill pulls context from several sources and writes a one-page brief:
 
 - **Google Calendar** — the next upcoming event (or one matching a keyword) and its attendees

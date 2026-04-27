@@ -1,6 +1,12 @@
 # Session Capture
 
-*v2.1 — Sub-project routing rewritten with CWD precedence (Rule 1) and topic-divergence guard (Rule 2). Step 0.5 consolidates all path resolution into a single Python pass — downstream steps reuse the cached values instead of re-walking the filesystem. v1.12 added non-destructive fallback when no active sub-project is set: writes session content to a project-root SESSION_LOG.md instead of overwriting any project-root HANDOFF.md the user maintains by hand.*
+*v2.3 — Step 6 summary emits an OSC-0 terminal-title escape via `/dev/tty` after the captured-confirmation block. Editor tab title becomes `[<task-short>] done` (or `[no-anchor] done` for unanchored sessions). Phase 0 of a multi-terminal collision fix. Reaches the terminal via `/dev/tty` (controlling terminal); silent no-op when unavailable.*
+*v2.2 — Routing-audit row gains `state_set_by_user` and `state_set_on_hostname` columns (sourced from `active-subproject.json`). Step 0.5 forwards them; Step 5a routing-audit echo includes them. Schema bumps from 8-field to 10-field; readers tolerant of 7/8/10 by positional parse. Pure additive — no routing-logic change. Diagnostic for multi-terminal collision diagnosis.*
+*v2.1 — Rule 2 divergence guard. The guard tokenizes state.task_name + session topic, drops stopwords, and falls through to Step 5a.5 if the token intersection is empty — preserving the state folder's HANDOFF and surfacing a breadcrumb to the user. Audit label for the divergent case is `2-fresh-state-divergent` (distinct from `2-fresh-state`) so telemetry can measure how often the guard fires. Routing-audit CSV gains a trailing `hostname` field; readers tolerate 7-field and 8-field rows.*
+*v2.0 — Routing rewritten to CWD-precedence. Core change: Step 5a checks whether CWD is inside a HANDOFF-bearing sub-folder BEFORE consulting `active-subproject.json`. This prevents stale state from a prior session (`/start-task` set to folder A, current CWD under folder B with its own HANDOFF.md) from misrouting handoffs. State-file freshness check switched from a 14-day `set_at` field (which can be LLM-fabricated) to a 24-hour filesystem mtime (can't be faked). Routing-audit CSV at `~/.claude-assistant/logs/routing-audit.csv` captures each decision for telemetry.*
+*v1.12 — Step 5a.5 made non-destructive. When no `active-subproject.json` is set, `/done` NO LONGER overwrites a project-root `HANDOFF.md`. Instead it appends a dated entry to a project-root `SESSION_LOG.md` (creates if needed) and falls through to Step 5b's global handoff. Scoped project-root HANDOFF.md requires explicit `/start-task`. All scoped writes (HANDOFF.md, SESSION_LOG.md entries) gain hostname+timestamp metadata via an atomic-write helper.*
+*v1.11 — Atomic-write discipline added. All writes to session-log.md, HANDOFF.md, SESSION_LOG.md, handoff.md, watch-list.md, and skill-performance.csv MUST route through the atomic-write helper (tmp-file + `os.replace()`). Prevents corruption from sync race conditions and process interruption.*
+*v1.10 — Step 2.7 body extracted to a separate reference and now runs ONLY on `retro` flag. Steps 0.5/3.5/5a/5a.5 CWD walks consolidated into a single Step 0.5 pass — downstream steps reuse cached values. Quick-default added for Brief sessions. 40-call soft-cap (prompt-level) added before optional steps. Effort-steering preamble added.*
 
 Captures key decisions, open questions, follow-ups, and working artifacts from the current session. Writes a structured entry to a session log and persists unsaved artifacts for cross-session continuity.
 
@@ -11,9 +17,9 @@ Captures key decisions, open questions, follow-ups, and working artifacts from t
 - `quick` — abbreviated capture (decisions + follow-ups only, no context summary)
 - `project` — also write a project-level `HANDOFF.md` to the project root
 - `project:name` — tag the entry with a specific project name
-- `retro` — additionally run a watch-list check (looks for unresolved hypotheses, failed approaches, and patterns repeated across sessions)
+- `retro` — additionally run a watch-list check (looks for unresolved hypotheses, failed approaches, and patterns repeated across sessions). Opt-in only — no auto-fire on Extended sessions.
 
-## How Routing Works (v2.0)
+## How Routing Works (v2.0+)
 
 `/done` decides where to write the handoff using two rules in priority order. Both prevent the most common misroute: stale state from a prior `/start-task` overrides the current working directory.
 
@@ -24,6 +30,12 @@ Captures key decisions, open questions, follow-ups, and working artifacts from t
 **Neither rule fires.** Falls through to a non-destructive path: writes a project-root `SESSION_LOG.md` (append-only) and a global handoff. **Never overwrites a project-root `HANDOFF.md` you maintain by hand** — that requires explicit `/start-task` first.
 
 ## Instructions
+
+**Effort-steering preamble:** This skill is structured and templated — extract facts from the conversation into slots and write outputs. Prioritize responding quickly over thinking deeply. Do not re-analyze the session. This is a low-judgment skill; high-effort reasoning is overkill and wastes tokens.
+
+**File-write discipline:** Every write to a synced file in this skill MUST use an atomic-write helper. Direct `Write` tool or `>>` appends are forbidden for: `session-log.md`, `HANDOFF.md`, `SESSION_LOG.md`, `handoff.md`, `watch-list.md`, `skill-performance.csv`. Working-notes artifact files (new files in `working-notes/`) may use direct `Write` — they are not subject to concurrent sync collisions because each file is named per-session.
+
+**Post-hoc budget audit:** Log the final tool-call count in Step 6's performance log line. If this run exceeded 40 calls, also write a one-line anomaly record to a rate-limit-shadow CSV. This is an audit trail, not a pre-emptive cap — the model cannot reliably count its own tool calls mid-execution.
 
 ### Step 0.5: Consolidated CWD Walk
 
@@ -41,6 +53,8 @@ result = {
     "ACTIVE_SUBPROJECT_DATA": None,
     "STATE_MTIME_EPOCH": 0,
     "STATE_AGE_HOURS": -1,
+    "STATE_SET_BY_USER": "",       # v2.2: from active-subproject.json
+    "STATE_SET_ON_HOSTNAME": "",   # v2.2: from active-subproject.json
     "PROJECT_ROOT": "",
     "PROJECT_CLAUDE_MD": "",
     "CWD_HANDOFF_PATH": "",
@@ -48,28 +62,31 @@ result = {
 
 cwd = d
 for _ in range(7):
-    # active-subproject.json (used by Rule 2)
     asp = os.path.join(cwd, '.claude', 'active-subproject.json')
     if os.path.exists(asp) and not result["ACTIVE_SUBPROJECT_JSON"]:
         try:
             data = json.load(open(asp))
-            result["ACTIVE_SUBPROJECT_JSON"] = asp
-            result["ACTIVE_SUBPROJECT_DATA"] = data
-            result["SUBPROJECT_NAME"] = data.get('task_name', '')
-            result["SUBPROJECT_FOLDER"] = data.get('folder_relative', '')
-            mtime = os.path.getmtime(asp)
-            result["STATE_MTIME_EPOCH"] = mtime
-            result["STATE_AGE_HOURS"] = (now - mtime) / 3600.0
+            sv = data.get('schema_version')
+            if sv != 3:
+                sys.stderr.write(f"⚠ active-subproject.json schema mismatch at {asp}: expected v3, got {sv!r}. Ignoring.\n")
+            else:
+                result["ACTIVE_SUBPROJECT_JSON"] = asp
+                result["ACTIVE_SUBPROJECT_DATA"] = data
+                result["SUBPROJECT_NAME"] = data.get('task_name', '')
+                result["SUBPROJECT_FOLDER"] = data.get('folder_relative', '')
+                result["STATE_SET_BY_USER"] = data.get('set_by_user', '')
+                result["STATE_SET_ON_HOSTNAME"] = data.get('set_on_hostname', '')
+                mtime = os.path.getmtime(asp)
+                result["STATE_MTIME_EPOCH"] = mtime
+                result["STATE_AGE_HOURS"] = (now - mtime) / 3600.0
         except Exception:
             pass
 
-    # .claude/CLAUDE.md (project root marker)
     cmd = os.path.join(cwd, '.claude', 'CLAUDE.md')
     if os.path.exists(cmd) and not result["PROJECT_ROOT"]:
         result["PROJECT_ROOT"] = cwd
         result["PROJECT_CLAUDE_MD"] = cmd
 
-    # HANDOFF.md at this level — only counts as "sub-folder HANDOFF" if we haven't reached PROJECT_ROOT yet.
     h = os.path.join(cwd, 'HANDOFF.md')
     if os.path.exists(h) and not result["CWD_HANDOFF_PATH"] and not result["PROJECT_ROOT"]:
         result["CWD_HANDOFF_PATH"] = h
@@ -84,6 +101,7 @@ print(json.dumps(result))
 
 Parse the JSON. Cache the values. Subsequent steps reference:
 - `SUBPROJECT_NAME`, `SUBPROJECT_FOLDER`, `ACTIVE_SUBPROJECT_DATA`, `STATE_AGE_HOURS` → Steps 3, 5a
+- `STATE_SET_BY_USER`, `STATE_SET_ON_HOSTNAME` → Step 5a routing-audit row (v2.2)
 - `PROJECT_ROOT`, `PROJECT_CLAUDE_MD` → Steps 5a, 5a.5
 - `CWD_HANDOFF_PATH` → Step 5a Rule 1
 
@@ -190,34 +208,60 @@ Two rules in priority order. Use cached values from Step 0.5.
 2. Derive `task_name`: read the first non-empty H1 of `CWD_HANDOFF_PATH`. If it matches `^# Handoff — (.+)$`, use the capture group; else use folder basename title-cased.
 3. **Overwrite logging:** Read first non-empty line of existing `CWD_HANDOFF_PATH`, append to global session log: `*Sub-folder handoff overwritten (cwd-precedence): [first-line]*`
 4. Write `folder_path/HANDOFF.md` using the project-level template.
-5. **Global handoff:** write to your global handoff file ONLY if infrastructure files were modified (skill files, agent files, config files). Otherwise skip.
-6. **Return** — skip Rule 2.
+5. **Routing audit** (see "Routing audit log" below). `RULE_FIRED="1-cwd-precedence"`, `CHOSEN=folder_path`.
+6. **Global handoff:** write to your global handoff file ONLY if infrastructure files were modified (skill files, agent files, config files). Otherwise skip.
+7. **Return** — skip Rule 2.
 
 **Rule 2 — Fresh active state.** If Rule 1 did NOT fire AND `ACTIVE_SUBPROJECT_DATA` is non-empty AND `STATE_AGE_HOURS` is between 0 and 24 (or `permanent: true` in state), route to the state's folder.
 
-**Divergence guard:** Before committing, tokenize `ACTIVE_SUBPROJECT_DATA.task_name` and the session's Step 1 topic summary (lowercase, split on whitespace/hyphens/underscores/slashes, drop common stopwords). If the intersection of the two token sets is **empty** → divergent session.
+*Why 24h not 14 days:* `set_at` fields can be LLM-fabricated; v2 uses filesystem `mtime` (computed in Step 0.5) with a tighter window. 24h matches typical "I set it today" intent; anything older probably isn't the current session's topic.
 
-**Divergent path:**
-1. Do NOT overwrite `folder_path/HANDOFF.md`. Leave the state folder's HANDOFF untouched.
-2. Fall through to Step 5a.5.
-3. **Surface a breadcrumb in the Step 6 summary:**
+**Rule 2 divergence guard (v2.1).** Before committing to route to state folder, check for topic divergence.
+
+1. Tokenize `ACTIVE_SUBPROJECT_DATA.task_name` and the session's Step 1 topic summary: lowercase, split on whitespace/hyphens/underscores/slashes, drop stopwords (`the`, `a`, `an`, `and`, `of`, `for`, `to`, `in`, `on`, `project`, `task`, `trip`, `session`, `management`, `integration`, `skill`, `skills`).
+2. If the intersection of the two token sets is **empty** → divergent session. Execute the divergent path. If the intersection is non-empty → proceed with the normal Rule 2 steps.
+
+**Divergent path (token intersection empty):**
+
+a. Do NOT overwrite `folder_path/HANDOFF.md`. Leave the state folder's HANDOFF untouched.
+b. **Routing audit.** `RULE_FIRED="2-fresh-state-divergent"`, `CHOSEN="-"`, `STATE_FOLDER=<state.folder_relative>`.
+c. Fall through to Step 5a.5 — the project-root SESSION_LOG.md append path. Session content is still captured there.
+d. **Step 6 breadcrumb (mandatory surface in summary):**
    ```
    ⚠ State/session divergence detected
      Active sub-project: [state.task_name] ([state.folder_relative])
      Session topic:      [Step 1 topic summary]
      State HANDOFF preserved; session captured in <PROJECT_ROOT>/SESSION_LOG.md.
+     To route to a different folder, run: /start-task folder:<target> && /done
    ```
 
-**Normal Rule 2 path (intersection non-empty):**
-1. Read `folder_path`, `task_name`, `folder_relative` from state.
-2. Overwrite logging (same as Rule 1).
-3. Write `folder_path/HANDOFF.md`.
-4. Global handoff: same infrastructure-only rule.
-5. Return.
+**Normal Rule 2 path (token intersection non-empty):**
+
+1. Read: `folder_path`, `task_name`, `folder_relative` from `ACTIVE_SUBPROJECT_DATA`.
+2. **Overwrite logging:** If `folder_path/HANDOFF.md` exists and is non-empty, read first non-empty line, append to session-log.md: `*Sub-project handoff overwritten: [first-line]*`
+3. **Write** `folder_path/HANDOFF.md` tagged `*Project: [task_name]*` + `SESSLOG:[timestamp]`.
+4. **Routing audit.** `RULE_FIRED="2-fresh-state"`, `CHOSEN=folder_path`.
+5. **Global handoff:** same infrastructure-only rule as Rule 1.
+6. Step 6 summary: `Handoff (scoped): [folder_relative]/HANDOFF.md [via: fresh-state, age=[N]h] [written]`.
+7. **Return** — skip Step 5a.5 and Step 5b scoped write.
 
 **Neither rule fired:**
-- No CWD HANDOFF AND no state file → fall through to Step 5a.5.
-- State exists but stale (>24h, not permanent) → fall through.
+- No CWD HANDOFF AND no state file → fresh session, no context → fall through.
+- State exists but stale (>24h, not permanent) → fall through. Write routing-audit row with `RULE_FIRED="0-stale-state-fallthrough"` before falling through.
+
+**Routing-audit log (required after ANY routing decision):**
+
+Location: `~/.claude-assistant/logs/routing-audit.csv`
+Schema (v2.2): `timestamp,session_id,cwd,rule_fired,chosen_folder,state_folder,state_age_hours,hostname,state_set_by_user,state_set_on_hostname`
+
+Schema-version notes:
+- Pre-2.1 rows: 7 fields (no `hostname`).
+- v2.1 rows: 8 fields (no `state_set_by_user`/`state_set_on_hostname`).
+- v2.2+ rows: 10 fields. The two new fields originate from `active-subproject.json`'s `set_by_user` and `set_on_hostname`; empty strings if the state file is older.
+
+Readers should tolerate 7-field, 8-field, OR 10-field rows (positional parse).
+
+One row per `/done` invocation. Append-only. v2.2 row size ~110 bytes.
 
 #### 5a.5. CWD-fallback routing (no active sub-project) — non-destructive
 
@@ -229,17 +273,23 @@ When neither Rule 1 nor Rule 2 fires:
 
 3. If `SESSION_LOG.md` doesn't exist, create with the canonical header.
 
-4. **Prepend the session entry** using the same block format as Step 3.
+4. **Prepend the session entry** using the same block format as Step 3. The atomic-write helper inserts a `<!-- written by: HOSTNAME at ISO8601 -->` line so cross-machine origin is visible.
 
-5. **Fall through to Step 5b** — the global handoff still gets written.
+5. **Routing-audit row.** Write a row with `RULE_FIRED="3-project-log"`, `CHOSEN="<PROJECT_ROOT>/SESSION_LOG.md"`.
 
-6. **Step 6 summary:** show `Handoff (scoped): <PROJECT_ROOT>/SESSION_LOG.md [via: cwd-project-log] [appended]` and `Project HANDOFF.md: preserved (no active sub-project — run /start-task to write a scoped HANDOFF)`.
+6. **Fall through to Step 5b** — the global handoff still gets written. Do NOT `return` early.
+
+7. **Step 6 summary:** show `Handoff (scoped): <PROJECT_ROOT>/SESSION_LOG.md [via: cwd-project-log] [appended]` and `Project HANDOFF.md: preserved (no active sub-project — run /start-task to write a scoped HANDOFF)`.
 
 **Why this design:** the destructive code path (silently overwriting project-root HANDOFF.md) is removed, not guarded. No prompt-dismissal or transcription error can restore the failure mode. Cross-session context is still captured via append-only SESSION_LOG.md.
 
 #### 5b. Standard handoff (all other cases)
 
+**Overwrite logging:** Before overwriting your global handoff file, if the existing file is non-empty, append to session-log.md: `*Previous handoff overwritten: [topic from old handoff]*`.
+
 Generate the handoff note (≤30 lines) and overwrite `~/.claude/handoff.md` (or your equivalent) for SessionStart-hook resumption.
+
+**Routing-audit row:** After writing, append a row with `RULE_FIRED="4-global-handoff"`, `CHOSEN="~/.claude/handoff.md"`.
 
 **Key rules:**
 - Max 30 lines (Working Artifacts lines don't count — they're pointers)
@@ -273,9 +323,9 @@ SESSLOG:[YYYY-MM-DD HH:MM]
 [1-2 sentences for the next session to pick up seamlessly]
 ```
 
-**Overwrite logging:** Before overwriting, if the existing file is non-empty, append to the global session log: `*Previous handoff overwritten: [topic from old handoff]*`.
-
 ### Step 6: Summary
+
+Display a brief confirmation:
 
 ```
 ────────────────────
@@ -305,6 +355,17 @@ Next time: [most important follow-up item]
 ────────────────────
 ```
 
+**v2.3 — Phase 0 affordance.** After printing the summary, emit an OSC-0 terminal-title escape via `/dev/tty` so the editor tab strip shows `[<task-short>] done`. Source the task name from `SUBPROJECT_NAME` (Step 0.5 cache). Falls silently to no-op if `/dev/tty` is unwritable or not the controlling terminal.
+
+```bash
+if [ -n "$SUBPROJECT_NAME" ]; then
+  SHORT_NAME=$(echo "$SUBPROJECT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-20)
+  printf '\033]0;[%s] done\007' "$SHORT_NAME" > /dev/tty 2>/dev/null || true
+else
+  printf '\033]0;[no-anchor] done\007' > /dev/tty 2>/dev/null || true
+fi
+```
+
 ## Customization Points
 
 - **Log file location:** Default `~/Documents/session-log.md`. Adjust to your preferred location.
@@ -312,6 +373,7 @@ Next time: [most important follow-up item]
 - **Working-notes directory:** Default `~/Documents/working-notes/`. Adjust as needed.
 - **Archive retention:** 60-day prune threshold or 1,500-line trigger — adjust per your tolerance.
 - **Sub-project routing:** Requires the optional `/start-task` skill to populate `.claude/active-subproject.json`. Without it, only Rule 1 (CWD precedence) and Step 5a.5 (project-root SESSION_LOG.md) fire — both work fine without state files.
+- **Routing-audit CSV:** Default `~/.claude-assistant/logs/routing-audit.csv`. Adjust to wherever you keep skill telemetry.
 
 ## Error Handling
 
@@ -331,4 +393,4 @@ Next time: [most important follow-up item]
 echo "$(date +%Y-%m-%d),done,TOOL_CALLS,NOTES" >> ~/.claude-assistant/logs/skill-performance.csv
 ```
 
-Replace TOOL_CALLS with best estimate and NOTES with brief summary (e.g., "3-decisions-2-followups-handoff").
+Replace TOOL_CALLS with best estimate and NOTES with brief summary (e.g., "3-decisions-2-followups-handoff"). If this run exceeded the 40-call threshold, also append an anomaly row to a rate-limit-shadow CSV.
