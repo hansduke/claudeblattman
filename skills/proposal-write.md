@@ -18,8 +18,8 @@ The voice pack loads automatically. Context gathering runs automatically after t
 If you maintain a voice pack with your writing style:
 
 ```
-@~/Proposal_Resources/voice/PROPOSAL_VOICE.md
-@~/Proposal_Resources/voice/PROPOSAL_EXAMPLES.md
+@~/.claude-assistant/voice/PROPOSAL_VOICE.md
+@~/.claude-assistant/voice/PROPOSAL_EXAMPLES.md
 ```
 
 Create these files with your own writing style preferences: sentence length, active vs. passive voice, hedging rules, formatting conventions. If not found, the skill warns and continues with general academic voice rules.
@@ -81,7 +81,7 @@ Skip this step if the user passes `skipcontext`.
 
 ### Step 3: Donor Profile Lookup
 
-1. Check for a donor profile at `~/Proposal_Resources/donors/[funder-slug].md`
+1. Check for a donor profile at `~/.claude-assistant/donors/[funder-slug].md`
 2. **If found:** Read it. Display "What They Value" and "What to Avoid" to the user. Check freshness — if `next_review_date` has passed, display: "Donor profile for [funder] may be outdated (last reviewed [date]). Proceeding with current info — consider running `/donor-profile [funder] refresh` after this session."
 3. **If not found:** Display: "No donor profile found for [funder]. Run `/donor-profile [funder]` to create one, or continue without it." Flag the gap in the context brief.
 
@@ -333,9 +333,9 @@ Append a row to your skill-performance log (skip if log directory not found):
 
 **To set up this skill for your workflow:**
 
-1. **Voice pack location:** The `@~/Proposal_Resources/voice/` references point to writing style files. Create your own with sentence length preferences, hedging rules, and formatting conventions, or remove these lines to use general academic voice.
+1. **Voice pack location:** The `@~/.claude-assistant/voice/` references point to writing style files. Create your own with sentence length preferences, hedging rules, and formatting conventions, or remove these lines to use general academic voice.
 
-2. **Folder paths** (Steps 2 and 8): The paths `05_Submissions/Grants/`, the weekly-reviews directory, and `~/Proposal_Resources/donors/` reflect one folder naming convention. Update all paths to match your own project structure.
+2. **Folder paths** (Steps 2 and 8): The paths `05_Submissions/Grants/`, the weekly-reviews directory, and `~/.claude-assistant/donors/` reflect one folder naming convention. Update all paths to match your own project structure.
 
 3. **Save location** (Step 8): Default `05_Submissions/Grants/[Funder]_[Year]_Draft.md` — change to your own drafts directory.
 

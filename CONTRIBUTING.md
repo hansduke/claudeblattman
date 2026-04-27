@@ -117,6 +117,36 @@ Replace with generic examples.
 
 Read every file in `skills/` and `agents/` end-to-end. Automated grep catches patterns but misses context (e.g., examples using real project details).
 
+### Pre-commit canary (run before every push that touches skills/ or agents/)
+
+A single grep that catches the most common sanitization slips:
+
+```bash
+grep -rnE "Proposal_Resources|/Users/chrisblattman|Dropbox/Claude/(Settings|Projects|Guidelines|voice)|HPP-Blattman|/Settings/(scripts|rules|logs|state)/|blattman@gmail|blattman\\+todo|jeannie\\.annan|claudeblattman@gmail" skills/ agents/ templates/
+```
+
+Empty output = clean. Any output is a leak that needs sanitization before push.
+
+`~/.claude/plans/` references are FINE — that's the standard Claude Code plan-mode directory. The leak risk is specific named plan files (like `~/.claude/plans/enchanted-candle.md`); check for those manually:
+
+```bash
+grep -rnE "\.claude/plans/[a-z][a-z0-9_-]+\.md" skills/ agents/ templates/
+```
+
+Approved public path namespaces (use these instead of personal ones):
+
+- `~/.claude/commands/` and `~/.claude/agents/` — public Claude Code install locations
+- `~/.claude-assistant/` — established public placeholder for personal config (logs, scripts, voice, donors, etc.)
+- `~/Documents/`, `~/projects/`, `~/Box/` — generic user paths
+
+Approved credential / research-sensitive sweep (run alongside the canary above):
+
+```bash
+grep -rnEi "sk-ant-|api_key\\s*=|bearer\\s|client_secret|password\\s*=|IRB[- ]?[0-9]|NSF [A-Z]+-[0-9]+|OPP[0-9]+|grant #" skills/ agents/ templates/
+```
+
+Even one credential hit is stop-the-world. Research-identifier hits get a judgment call — generic vocabulary is fine, specific protocol/grant numbers are not.
+
 ---
 
 ## Style Guidelines

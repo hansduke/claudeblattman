@@ -17,8 +17,8 @@ This skill takes an existing proposal draft and feedback (dictated, typed, or fr
 If you maintain a voice pack:
 
 ```
-@~/Proposal_Resources/voice/PROPOSAL_VOICE.md
-@~/Proposal_Resources/voice/PROPOSAL_EXAMPLES.md
+@~/.claude-assistant/voice/PROPOSAL_VOICE.md
+@~/.claude-assistant/voice/PROPOSAL_EXAMPLES.md
 ```
 
 If not found, the skill warns and continues with general academic voice rules.
@@ -40,7 +40,7 @@ Also read `.claude/CLAUDE.md` for project config.
 
 After finding the draft, identify the funder (from draft filename, header, or content):
 
-1. Check for a donor profile at `~/Proposal_Resources/donors/[funder-slug].md`
+1. Check for a donor profile at `~/.claude-assistant/donors/[funder-slug].md`
 2. **If found:** Read it. Display "What They Value" and "What to Avoid" to the user. These inform revision decisions — especially when feedback conflicts with funder priorities.
 3. **If not found:** Note: "No donor profile for [funder]. Proceeding without funder-specific guidance."
 
@@ -184,10 +184,10 @@ Tighten the intro. Cut 200 words from methodology.
 
 **To set up this skill for your workflow:**
 
-1. **Voice pack location:** The `@~/Proposal_Resources/voice/` references point to writing style files. Create your own voice pack with sentence length preferences, hedging rules, and formatting conventions, or remove these lines to use general academic voice.
+1. **Voice pack location:** The `@~/.claude-assistant/voice/` references point to writing style files. Create your own voice pack with sentence length preferences, hedging rules, and formatting conventions, or remove these lines to use general academic voice.
 
 2. **Default draft directory** (Step 1): The default search path `05_Submissions/Grants/` is one folder naming convention. Change this to match your own proposal directory — e.g., `~/Research/Proposals/` or `~/Grants/Active/`.
 
-3. **Donor profiles** (Step 1.5): The `~/Proposal_Resources/donors/` directory is optional. If you maintain funder profiles, update the path to match your structure. If not, the skill continues without funder-specific guidance.
+3. **Donor profiles** (Step 1.5): The `~/.claude-assistant/donors/` directory is optional. If you maintain funder profiles, update the path to match your structure. If not, the skill continues without funder-specific guidance.
 
 4. **Example paths** in the Examples section also reference the default draft directory — update them to match your own structure.
