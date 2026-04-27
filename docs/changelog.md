@@ -107,7 +107,6 @@ The four-skill pipeline now has a single canonical page that explains how the pa
 A couple of pieces still waiting.
 
 - **Voice pack system** — register overlays (core voice + proposal + public writing + email) plus a critic-agent that flags drift at the line level. Shown as a complete pack with sanitized downloads. Gated on voice-pack sanitization.
-- **`/tips-bookmarks`** — pulls X bookmarks via `twitter-cli` and feeds them into the curate pipeline. Still private; the merged continuous-improvement page describes the role but doesn't link a download. Sanitization gated.
 - **Prompt architecture (full page)** — the [Prompt Engineering page](essentials/prompting.md) got three new sections in the April 17 launch (long-content ordering, system-vs-user, constraint blocks). The complete page update plus the [prompt-preferences template](downloads/index.md#templates) as a paste-into-any-project download is still pending.
 
 ---

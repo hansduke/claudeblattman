@@ -1,5 +1,6 @@
 # Session Capture
 
+*v2.4 — Step 4's natural-language pruning logic is replaced with a single Bash call to a deterministic prune helper script. Closes the silent-skip gap where Brief / auto-quick runs let the model bypass pruning. Adds tiered cutoffs (>10k lines → 7d, >6k → 14d, >3k → 30d, >1.5k → 60d) so pruning actually fires under high-volume workflows. Background: the session log had drifted from ~3,000 to ~9,700 lines because /done's auto-quick path was implicitly treating Step 4 as skippable. Calling a single script replaces "the model decides whether to prune" with "the harness runs the prune unconditionally."*
 *v2.3 — Step 6 summary emits an OSC-0 terminal-title escape via `/dev/tty` after the captured-confirmation block. Editor tab title becomes `[<task-short>] done` (or `[no-anchor] done` for unanchored sessions). Phase 0 of a multi-terminal collision fix. Reaches the terminal via `/dev/tty` (controlling terminal); silent no-op when unavailable.*
 *v2.2 — Routing-audit row gains `state_set_by_user` and `state_set_on_hostname` columns (sourced from `active-subproject.json`). Step 0.5 forwards them; Step 5a routing-audit echo includes them. Schema bumps from 8-field to 10-field; readers tolerant of 7/8/10 by positional parse. Pure additive — no routing-logic change. Diagnostic for multi-terminal collision diagnosis.*
 *v2.1 — Rule 2 divergence guard. The guard tokenizes state.task_name + session topic, drops stopwords, and falls through to Step 5a.5 if the token intersection is empty — preserving the state folder's HANDOFF and surfacing a breadcrumb to the user. Audit label for the divergent case is `2-fresh-state-divergent` (distinct from `2-fresh-state`) so telemetry can measure how often the guard fires. Routing-audit CSV gains a trailing `hostname` field; readers tolerate 7-field and 8-field rows.*
@@ -188,13 +189,29 @@ If `session_log: true` is set: append a session entry to `<PROJECT_ROOT>/SESSION
 
 ### Step 4: Prune and Cleanup
 
-**Session log pruning:**
-1. Count lines in your session log
-2. ≤1,500 lines → skip
-3. >1,500 → archive entries older than 60 days to `session-log-archive.md`
-4. **One-time migration:** if file exceeds 3,000 lines, archive ALL entries older than 30 days
+**Session log pruning (v2.4 — deterministic helper):**
 
-**Working-notes cleanup:** Delete files in `working-notes/` older than 30 days. Skip if no `working-notes/` directory exists.
+Call the deterministic Python prune helper. It implements tiered cutoffs (file-size → cutoff-days), so it actually fires under high-volume workflows where the old fixed 30-day cutoff produced false-negative no-ops:
+
+```bash
+python3 ~/.claude-assistant/scripts/session-log-prune.py
+```
+
+The helper reads your global session log, archives entries older than the tier's cutoff to a sibling `session-log-archive.md`, and prints a one-line summary on stdout that you copy into Step 6's summary block. Tiers (most-aggressive first):
+
+| File size | Cutoff |
+|-----------|--------|
+| > 10,000 lines | 7 days (emergency) |
+| > 6,000 lines | 14 days (busy) |
+| > 3,000 lines | 30 days (hard) |
+| > 1,500 lines | 60 days (soft) |
+| ≤ 1,500 lines | no-op |
+
+Why deterministic: when this step was natural-language, the model silently skipped it under Brief / auto-quick effort routing, and the file drifted from ~3,000 to ~9,700 lines before it was caught. Calling a single script replaces "the model decides whether to prune" with "the harness runs the prune unconditionally."
+
+If the helper is missing or errors out: surface the error in Step 6 summary and continue with the rest of /done — pruning is non-blocking.
+
+**Working-notes cleanup:** Delete files in `working-notes/` older than 30 days (by mtime). Skip if no `working-notes/` directory exists.
 
 ### Step 5: Write Handoff Note
 
@@ -371,14 +388,16 @@ fi
 - **Log file location:** Default `~/Documents/session-log.md`. Adjust to your preferred location.
 - **Handoff file location:** Default `~/.claude/handoff.md` (read by SessionStart hook). Adjust if your hook reads from elsewhere.
 - **Working-notes directory:** Default `~/Documents/working-notes/`. Adjust as needed.
-- **Archive retention:** 60-day prune threshold or 1,500-line trigger — adjust per your tolerance.
+- **Archive retention:** Tiered cutoffs in the prune helper (7d / 14d / 30d / 60d depending on file size). Adjust thresholds in the helper script to your tolerance.
 - **Sub-project routing:** Requires the optional `/start-task` skill to populate `.claude/active-subproject.json`. Without it, only Rule 1 (CWD precedence) and Step 5a.5 (project-root SESSION_LOG.md) fire — both work fine without state files.
 - **Routing-audit CSV:** Default `~/.claude-assistant/logs/routing-audit.csv`. Adjust to wherever you keep skill telemetry.
+- **Prune helper:** Default `~/.claude-assistant/scripts/session-log-prune.py`. A standalone Python script that reads the global session log, archives by tier, and prints a one-line summary. Easy to swap for any equivalent script of your own.
 
 ## Error Handling
 
 - **No substantive content:** "Nothing to capture — session was too brief." Exit.
 - **Session log write fails:** Display the entry in the terminal so you can manually save it.
+- **Prune helper missing or errors:** Surface the error in Step 6 summary; pruning is non-blocking — the rest of /done continues.
 
 ## Design Notes
 

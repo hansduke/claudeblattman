@@ -165,10 +165,10 @@ Most weeks produce one or two direct edits. Most of the council's output is *inv
 
 ### `/tips-bookmarks` — pull from the firehose
 
-Pulls X/Twitter bookmarks via `twitter-cli`, dedupes against the log, and appends new items. Saves the manual copy-paste-email step that catches Twitter content via the curate path otherwise.
+Pulls X/Twitter bookmarks via `twitter-cli`, classifies each, dedupes against the log, and appends new items. Replaces the manual copy-paste-email step that catches Twitter content via the curate path otherwise. [Public skill →](../setup/skill-reference.md#tips-bookmarks-x-bookmark-pull)
 
-!!! tip "Source not yet downloadable here."
-    The pipeline works without it. `/tips-curate` already covers email-forwarded Twitter posts via the message body — Twitter URLs always fail under WebFetch, so the body text is what gets classified. If you bookmark heavily on X, the manual route still works; this skill just removes the friction.
+!!! tip "Or use the Gmail path"
+    The pipeline works without `/tips-bookmarks`. `/tips-curate` already covers email-forwarded Twitter posts via the message body — Twitter URLs always fail under WebFetch, so the body text is what gets classified. `/tips-bookmarks` just removes the forwarding friction if you bookmark heavily on X. Pick whichever fits your habit.
 
 ### `/tips-scout` — seed a search worth running
 

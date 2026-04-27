@@ -595,6 +595,33 @@ curl -o ~/.claude/commands/tips-scout.md \
 
 ---
 
+### /tips-bookmarks — X Bookmark Pull
+`[Advanced]`
+
+**What it does:** Pulls your X/Twitter bookmarks via `twitter-cli`, classifies each (worth-reviewing / not-relevant / needs-manual), rates High / Medium / Low, dedupes against the existing tips log, and appends approved items. Replaces the manual copy-paste-email path for X content. Sibling to `/tips-curate` (Gmail path).
+
+**MCP dependencies:** None. Requires `twitter-cli` installed and authenticated (a third-party CLI; see its own docs for setup).
+
+**Install:**
+```bash
+mkdir -p ~/.claude-assistant/tips ~/.claude-assistant/state
+curl -o ~/.claude/commands/tips-bookmarks.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/tips-bookmarks.md
+```
+
+**Usage:**
+```
+/tips-bookmarks                  # Pull recent bookmarks, classify, dedupe, append
+/tips-bookmarks dryrun           # Preview without writing
+/tips-bookmarks limit:20         # Pull more than the default
+```
+
+**Customization:** State file path (default `~/.claude-assistant/state/twitter-bookmarks-seen.json`), tips log path, tag taxonomy, default fetch limit, twitter-cli binary swap.
+
+**Learn more:** [Continuous Improvement](../system/continuous-improvement.md)
+
+---
+
 ### /tips-curate — Tip Curation
 `[Advanced]`
 
