@@ -142,6 +142,7 @@ Prefer manual install or want individual `curl` commands for each file? See the 
 
 ## See also
 
+- **[Deep Research](deep-research.md)** — the gather-and-synthesize workflow that produces the kind of input most worth running a council on.
 - **[Continuous Improvement](../system/continuous-improvement.md)** — the worked tips-pipeline specialization where five fixed personas (catalog conflict, maintenance tax, compounder, first-run, skeptic) decide what enters my CLAUDE.md. The general pattern, applied to one specific domain.
 - **[AI integration](../system/ai-integration.md)** — cross-vendor critics (Codex, Gemini) as council members; setup, flags, manual paste-loop for tools without CLIs.
 - **[`/review-plan`](plan-review-browser.md)** — the browser-side single-pass version, useful before you reach for a five-critic council.

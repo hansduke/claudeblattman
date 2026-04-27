@@ -253,6 +253,67 @@ curl -o ~/.claude/commands/review-plan.md \
 
 ---
 
+### /deep-research — Multi-Vendor Research
+`[Advanced]`
+
+**What it does:** Dispatches Claude WebSearch, Codex CLI, and Gemini 2.5 Pro CLI in parallel on the same research prompt. Three raw reports land in the project folder, indexed in a federated `research-archive/INDEX.md`. ChatGPT Deep Research, Grok, Perplexity, and Gemini's browser Deep Research are available as opt-in paste-loop arms via `--tool chatgpt|grok|perplexity|gemini-browser`.
+
+**MCP dependencies:** None. Requires Codex CLI and Gemini CLI installed (see [AI integration](../system/ai-integration.md) for setup).
+
+**Install:**
+```bash
+mkdir -p ~/.claude/commands/deep-research-references
+curl -o ~/.claude/commands/deep-research.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/deep-research.md
+
+for f in config.md dr-prompt-schema.md paste-loop-ux.md claude-subagent-template.md; do
+  curl -o ~/.claude/commands/deep-research-references/$f \
+    https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/deep-research-references/$f
+done
+```
+
+**Usage:**
+```
+/deep-research <topic>                          # Default: Claude + Codex + Gemini parallel
+/deep-research <topic> --tool both              # Codex + Gemini only
+/deep-research <topic> --tool all-auto          # All CLI arms
+/deep-research <topic> --tool chatgpt           # Paste-loop ChatGPT Deep Research
+/deep-research --absorb path/to/report.md       # Ingest a manually-run browser report
+/deep-research <topic> --quick                  # Claude-only, standard depth
+```
+
+**Customization:** Routing config (project-folder mapping), depth defaults, vendor-arm thresholds, archive paths.
+
+**Learn more:** [The deep research workflow](../workflows/deep-research.md) · [AI integration](../system/ai-integration.md)
+
+---
+
+### /dr-synthesize — Deep Research Synthesis
+`[Advanced]`
+
+**What it does:** Combines 2+ deep-research raw reports into a single synthesis with a mandatory `## Source Reports` block preserving absolute paths to the originals. Surfaces agreements, contradictions, gaps, and per-source unique insights. Synthesis is always a new file; raw inputs are never edited. Companion to `/deep-research` — works on its outputs or any report with the canonical frontmatter.
+
+**MCP dependencies:** None.
+
+**Install:**
+```bash
+curl -o ~/.claude/commands/dr-synthesize.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/dr-synthesize.md
+```
+
+**Usage:**
+```
+/dr-synthesize report-a.md report-b.md                  # Synthesize 2 reports
+/dr-synthesize *.md                                     # Glob all reports in cwd
+/deep-research <topic> --synthesize                     # Run /deep-research, then chain
+```
+
+**Customization:** Synthesis output path, frontmatter conventions, source-report extraction rules.
+
+**Learn more:** [The deep research workflow](../workflows/deep-research.md)
+
+---
+
 ### /council — Parallel Critics + Separate Synthesis
 `[Advanced]`
 

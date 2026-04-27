@@ -38,6 +38,14 @@ These aren't individual tools — they're **systems** built from skills, integra
 
     [:octicons-arrow-right-24: Read the full story](school-digest.md)
 
+-   **:material-magnify-scan: Deep Research**
+
+    ---
+
+    Run the same research prompt through Claude, Codex, and Gemini in parallel. Reports file themselves into the project folder. A separate synthesis pass surfaces the agreements, contradictions, and gaps — so you read one synthesized brief instead of three raw dumps.
+
+    [:octicons-arrow-right-24: Read the workflow](deep-research.md)
+
 -   **:material-file-document-check-outline: Tax Season Case Study**
 
     ---
@@ -60,6 +68,7 @@ These workflows serve different needs and timelines:
 | **Executive Assistant** | Email, calendar, daily workflow | 1-3 weeks of iteration | After MCP is configured |
 | **Noise Canceling** | High-volume organizational announcements | < 1 hour | After Gmail MCP is configured |
 | **Project Management** | Multi-project oversight and reporting | 3+ weeks of iteration | After EA basics are working |
+| **Deep Research** | Multi-source research synthesis with cross-vendor coverage | 30 min one-time setup | After Codex/Gemini CLIs are installed |
 | **Tax Season** | Document collection, compilation, verification | 2-3 hours one-time | When you're comfortable with MCP + skills |
 
 You don't need all of these. Start wherever your biggest pain point is. But they're designed to layer — the project management workflow works best when you already have inbox triage and meeting capture running.

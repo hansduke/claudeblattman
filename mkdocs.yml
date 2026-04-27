@@ -75,6 +75,7 @@ nav:
   - Workflows:
     - workflows/index.md
     - "Prompt, Plan, Review, Revise": workflows/first-session-skills.md
+    - "Deep Research": workflows/deep-research.md
     - Executive Assistant:
       - toolkit/executive-assistant.md
       - "Example: Noise Canceling": workflows/school-digest.md

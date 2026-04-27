@@ -16,7 +16,7 @@ Mixing vendors is cheap insurance. The peer doesn't need to be smarter; it needs
 
 ## A worked example — deep research synthesis
 
-The use I reach for most is multi-source research synthesis. Say I'm pulling together evidence on what works to reduce homicide in low-trust urban settings — two reviews, eight RCTs, six quasi-experimental papers, a few policy briefs. Thirty sources. The draft synthesis is mine; I want a council on it before I trust it enough to send to a co-author or use it in a grant.
+The use I reach for most is multi-source research synthesis, and it's the loop `/dr-synthesize` runs councils on. Say I'm pulling together evidence on what works to reduce homicide in low-trust urban settings — two reviews, eight RCTs, six quasi-experimental papers, a few policy briefs. Thirty sources. [`/deep-research`](../workflows/deep-research.md) produced the raw reports (Claude WebSearch + Codex + Gemini CLI in parallel); [`/dr-synthesize`](../setup/skill-reference.md#dr-synthesize-deep-research-synthesis) combined them into one draft. Before I trust the draft enough to send to a co-author or use in a grant, I run a council on it.
 
 Panel: harsh-referee, methodologist, academic-editor — three Claude critics on a four-seat council, with the fourth seat swapped for **Gemini** (long-context, reads the whole source bundle in one pass).
 
@@ -38,6 +38,22 @@ That's the value. Not that Gemini is smarter on policing. That a different model
 ## Skill review — the other place I reach for this
 
 The other place is reviewing a draft skill, agent, or workflow before it ships. The chef-skill mode panel (skill engineer + UX-for-tools + non-expert adoption) is where I run most of these. Swap one seat for Codex when there's real code in the picture and Codex catches the engineering stuff Claude waves through — race conditions in shell pipelines, permission-prompt triggers from `&&` chains, error paths that read fine but never fire.
+
+---
+
+## The deep research → synthesis → council chain
+
+Three skills, one workflow. Each does one thing.
+
+1. **[`/deep-research`](../workflows/deep-research.md) `<topic>`** — dispatches Claude WebSearch, Codex CLI, and Gemini 2.5 Pro CLI in parallel on the same prompt. Three raw reports land in the project folder, indexed in `research-archive/INDEX.md` for cross-project lookup. ChatGPT Deep Research, Grok, Perplexity, and Gemini's browser Deep Research are available as opt-in paste-loop arms (`--tool chatgpt`, etc.) — never volunteered as bonus arms.
+
+2. **`/dr-synthesize <report-paths...>`** — combines 2+ raw reports into a single synthesis with a mandatory `## Source Reports` block preserving absolute paths to the originals. Surfaces agreements, contradictions, gaps, and per-source unique insights. Synthesis is always a new file; raw inputs are never edited.
+
+3. **`/council file:<synthesis-path> --mixed gemini`** — runs the cross-vendor critic pattern this page is about, on the synthesis output, before I trust it.
+
+The chain is: discover sources → run `/deep-research` → run `/dr-synthesize` → run `/council` on the synthesis. Each step writes to disk, so you can stop, inspect, and resume. I rarely run all three in one sitting.
+
+Install pointers: [`/deep-research`](../setup/skill-reference.md#deep-research-multi-vendor-research) and [`/dr-synthesize`](../setup/skill-reference.md#dr-synthesize-deep-research-synthesis) in the skill catalog. The full deep-research workflow lives on its own [page](../workflows/deep-research.md).
 
 ---
 
@@ -123,15 +139,16 @@ These are not council substitutes. One peer is one critic — same blind spot ri
 
 ## Manual paste-loop for what isn't CLI'd yet
 
-Three tools I use that do not have stable CLIs I trust for council dispatch:
+Two tools I use that do not have stable CLIs I trust for council dispatch:
 
 | Tool | When | How to fold in |
 |---|---|---|
 | **Grok DeepSearch** | Discovering new tips and accounts (see [/tips-scout](continuous-improvement.md)) | Generate prompt locally, paste into grok.com, forward results to self-email |
-| **ChatGPT Deep Research** | Heavy multi-source literature review | Compose the brief, paste into ChatGPT, save the report into the project folder |
 | **Perplexity** | Citation-anchored fact lookups | Paste the question, copy answer with citations |
 
-For these, the integration is procedural: paste in, paste out, file the result. They don't ride in the council parallel-dispatch — but their outputs can be quoted into a Claude critic's prompt the next time around. That's the fallback for tools that are useful but not yet automatable.
+For these, the integration is procedural: paste in, paste out, file the result. They don't ride in the council parallel-dispatch — but their outputs can be quoted into a Claude critic's prompt the next time around.
+
+ChatGPT Deep Research used to live in this table. It's now an opt-in paste-loop arm inside [`/deep-research`](../workflows/deep-research.md) (`--tool chatgpt`) — the skill emits the prompt, you paste it into ChatGPT, and `/deep-research --absorb` ingests the report back into the project folder with canonical frontmatter. Same paste-loop mechanics, but the skill handles archiving and indexing instead of you.
 
 ---
 
