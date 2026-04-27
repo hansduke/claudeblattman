@@ -21,7 +21,7 @@ A system that manages your inbox, tracks your projects, processes your meetings,
 | **Session capture** | Records decisions, follow-ups, and handoff notes after each session | [`/done`](../setup/skill-reference.md#done-session-capture) |
 | **To-do management** | Add, review, and batch-process tasks across lists | [`/todo-add`](../setup/skill-reference.md#todo-add-add-to-do-item), [`/todo-review`](../setup/skill-reference.md#todo-review-to-do-review), [`/todo-queue`](../setup/skill-reference.md#todo-queue-todo-queue) |
 | **Goals tracking** | Quarterly objectives, progress scores, stalled-goal alerts | [`/goals-review`](../setup/skill-reference.md#goals-review-goals-review) |
-| **Meeting prep** | Pulls context from email, chat, calendar, and past meetings to generate a pre-meeting briefing | `/pre-meeting-brief` (not yet published — [patterns below](#meeting-prep-and-follow-up)) |
+| **Meeting prep** | Pulls context from email, chat, calendar, and past meetings to generate a pre-meeting briefing | [`/pre-meeting-brief`](../setup/skill-reference.md#pre-meeting-brief-meeting-prep-briefing) |
 | **Meeting follow-up** | Extracts decisions and action items from a transcript, drafts follow-up email to attendees | [`/post-meeting`](../setup/skill-reference.md#post-meeting-meeting-follow-up) |
 | **Noise canceling** | Digest of high-volume announcements (school, employer, nonprofit) | [Example walkthrough](../workflows/school-digest.md) |
 
@@ -415,7 +415,7 @@ Before each meeting, a skill gathers context from your email, chat, calendar, an
 - **Per-source tool call budgets.** Cap the number of tool calls per data source (e.g., max 8 Gmail searches, max 5 WhatsApp queries). When the cap is hit, stop and synthesize what you have. This prevents runaway costs and keeps the skill under 60 seconds.
 
 !!! tip "Build your own version"
-    The `/pre-meeting-brief` skill is not published because it depends heavily on my specific MCP stack (Gmail + Calendar + Granola + WhatsApp + Google Docs). But the patterns above are portable. Start simple: a skill that reads your calendar for today's meetings, searches Gmail for recent threads with each attendee, and outputs a one-page brief. Add sources as your integrations grow.
+    The [`/pre-meeting-brief`](../setup/skill-reference.md#pre-meeting-brief-meeting-prep-briefing) skill depends on a specific MCP stack (Gmail + Calendar + Granola + WhatsApp + Google Docs). The published version assumes you have those configured; if you don't, the patterns above are portable. Start simple: a skill that reads your calendar for today's meetings, searches Gmail for recent threads with each attendee, and outputs a one-page brief. Add sources as your integrations grow.
 
 ### Post-Meeting Follow-Up
 

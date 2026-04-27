@@ -342,6 +342,34 @@ curl -o ~/.claude-assistant/config/calendar-policy.md \
 
 ---
 
+### /pre-meeting-brief — Meeting Prep Briefing
+`[EA]`
+
+**What it does:** Pulls context from Gmail, Calendar, Granola transcripts, Google Docs, WhatsApp, and local files to compose a one-page brief before a meeting. Surfaces decisions required, open loops, and preparation needs. Two depth modes — `light` (top-of-file brief for routine check-ins) and `full` (deep multi-week synthesis for quarterly reviews or first-meetings with funders).
+
+**MCP dependencies:** Gmail MCP, Google Workspace MCP (Calendar + Docs), Granola MCP. WhatsApp MCP optional.
+
+**Install:**
+```bash
+curl -o ~/.claude/commands/pre-meeting-brief.md \
+  https://raw.githubusercontent.com/chrisblattman/claudeblattman/main/skills/pre-meeting-brief.md
+```
+
+**Usage:**
+```
+/pre-meeting-brief                        # Auto-detect depth from next event
+/pre-meeting-brief light                  # Force light brief
+/pre-meeting-brief full                   # Force full multi-source synthesis
+/pre-meeting-brief email                  # Also draft a pre-meeting email
+/pre-meeting-brief "<topic keyword>"      # Brief for a specific upcoming event
+```
+
+**Customization:** Lookback window (default 6 weeks for full mode), source-confidence thresholds, minimum-signal gate, attendee detection rules, optional donor-profile lookup for funder meetings.
+
+**Learn more:** [Meeting workflow end-to-end](../workflows/meeting-workflow.md)
+
+---
+
 ### /post-meeting — Meeting Follow-Up
 `[EA]`
 
