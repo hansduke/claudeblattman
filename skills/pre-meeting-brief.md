@@ -1,6 +1,7 @@
-<!-- pre-meeting-brief v1.2 | sanitized from private v1.2 -->
+<!-- pre-meeting-brief v1.3 | sanitized from private v1.3 -->
 # Pre-Meeting Brief
 
+*v1.3 — Granola health-check simplified after the Granola public-API rewrite. Phase 0f no longer probes transcript content (the upcoming meeting has no transcript yet, and probing an arbitrary prior transcript adds latency without a clean health signal — it was producing false HOLLOW). HOLLOW classification removed for Granola entirely; Granola is now OK / DEGRADED / UNAVAILABLE only. Phase 1c fallback clarified to hunt PRIOR project meetings for context, not the upcoming one. Source-confidence table, circuit breaker, and error-handling table aligned.*
 *v1.2 — Generates a structured pre-meeting briefing from project communications. Run from a project directory.*
 
 Pulls context from WhatsApp, Gmail, Granola, Google Docs, and local files. Surfaces decisions required, open loops, and preparation needs. Optionally emails the brief to attendees.
@@ -137,11 +138,10 @@ Run all checks silently. Results feed into the Phase 2 banner. No user interacti
 Fire in parallel:
 1. **WhatsApp SQLite**: `sqlite3 ~/whatsapp-mcp-ts/data/whatsapp.db "SELECT max(timestamp), count(*) FROM messages WHERE chat_jid IN ([configured JIDs]) AND timestamp > [lookback_epoch]"`
 2. **Gmail**: one test search with project keywords — check auth + result count
-3. **Granola**: `search_granola_events` with project name to check for meetings. Then call `list_granola_documents` to resolve Granola UUIDs — match by title + date against the search_granola_events results. **Do NOT pass Calendar event IDs to `get_granola_document` or `get_granola_transcript` — they use different ID formats and will always return "not found".** Use the UUID from `list_granola_documents` to call `get_granola_transcript` and verify content length > 50 chars.
-   - Events found AND transcript content non-empty → OK
-   - Events found but no matching UUID in list_granola_documents, OR transcript content empty → HOLLOW
-   - No events found → DEGRADED
-   - Auth error / unreachable → UNAVAILABLE ("Open Granola app to refresh token")
+3. **Granola**: `search_granola_events` with project keywords to check that the API + key are working AND that the project has prior meetings indexed. Do NOT probe transcript content here — the upcoming meeting has no transcript yet, and probing an arbitrary prior-meeting transcript adds latency without a clean health signal.
+   - Events found → OK
+   - No events found → DEGRADED ("no prior project meetings indexed in Granola")
+   - Auth error / unreachable / 401 → UNAVAILABLE (re-auth Granola per your provider's instructions)
 4. **Google Doc**: Read first 500 chars via `mcp__google_workspace__get_doc_content` (if `google_doc_id` configured). If readable but body < 100 chars → HOLLOW.
 5. **Local files**: glob transcripts folder — check existence
 
@@ -151,7 +151,7 @@ Fire in parallel:
 |--------|-----|--------|----------|-------------|
 | WhatsApp | Recent messages in lookback via SQLite | — | SQLite has data but no messages since last meeting; OR no messages in lookback but group normally active | DB locked, query fails |
 | Gmail | Search returns results | — | Search returns 0 (may be normal for some projects) | Auth error after retry, timeout, or API exception |
-| Granola | Events found AND content non-empty | Events found but all content empty → use local files, note "Granola HOLLOW (may need MCP restart)" | 0 events found | Auth error or unreachable |
+| Granola | Events found for project keywords | — | 0 events found (new project, keyword mismatch, or no prior meetings) | 401 / unreachable; re-auth Granola |
 | Google Doc | Readable with content | Readable but < 100 chars body → note "Google Doc nearly empty — may not be up to date" | — | 403 (permissions changed), 404, timeout |
 | Local files | Transcripts folder has files in lookback window | — | Folder exists but empty (normal for new projects) | Folder not found |
 
@@ -169,14 +169,14 @@ HOLLOW counts as DEGRADED for the minimum-signal gate.
 |--------|-----------|----------|-----------------|
 | WhatsApp | 5 | MCP queries + SQLite fallback | Stop after 2 consecutive empty responses |
 | Gmail | 8 | All searches + content reads combined | Stop if auth fails after 1 retry |
-| Granola | 5 | Pre-flight doc check + Phase 1 reads | Stop immediately after first HOLLOW or error in Phase 1 |
+| Granola | 5 | Pre-flight doc check + Phase 1 reads | Stop immediately on first error (401/timeout) in Phase 1 |
 | Google Doc | 2 | Read calls | Stop after first error |
 | Local files | 3 | Glob + reads | Silent skip on any error |
 
 When a source hits its cap: stop immediately. Note "[SOURCE] capped" in the source banner.
 Proceed to synthesis with what was gathered. Do NOT debug or retry.
 
-Granola Phase 1 check: before making any Phase 1 Granola calls, check if Phase 0e flagged Granola as HOLLOW or UNAVAILABLE. If so, skip Granola in Phase 1 entirely.
+Granola Phase 1 check: before making any Phase 1 Granola calls, check if Phase 0f flagged Granola as DEGRADED or UNAVAILABLE. If UNAVAILABLE, skip Granola in Phase 1 entirely. If DEGRADED (no prior project meetings), skip the Phase 1c MCP fallback but still attempt local-file reads.
 
 **Full depth** (target 50, warn at 80 tool calls):
 
@@ -204,7 +204,7 @@ Fire these in parallel where possible:
 
   **Source ranking in synthesis:** When multiple sources cover the same topic, weight: recent PI email (Search 1-2) > posted agenda > recent WhatsApp > older transcripts/email. When sources conflict: note the conflict rather than silently preferring one.
 
-- **1c. Granola transcripts**: **Primary**: Read local `.txt` files from the transcripts folder (populated by Phase 0f). Apply hollow-transcript check: FULL (≥5,000 chars + conversational speaker content) vs HOLLOW (<5,000 chars, starts with `###`, or bullet-only without speaker attribution). Exclude hollow transcripts from substantive use. **Fallback** (if no local files): Call `list_granola_documents` to get Granola UUIDs (if not already called in Phase 0e), matching to project meetings by title/date. Use those UUIDs with `get_granola_transcript` — never use Calendar event IDs from `search_granola_events` directly. (Note: Granola transcript reads are the most likely source of budget overruns — cap at 3 transcripts.)
+- **1c. Granola transcripts**: **Primary**: Read local `.txt` files from the transcripts folder (populated by Phase 0e). Apply hollow-transcript check: FULL (≥5,000 chars + conversational speaker content) vs HOLLOW (<5,000 chars, starts with `###`, or bullet-only without speaker attribution). Exclude hollow transcripts from substantive use. **Fallback** (only if no local files AND prior project meetings exist — for upcoming meetings the *current* meeting has no transcript yet, so this fallback fetches PRIOR project meetings for context, not the upcoming one): Call `list_granola_documents` to get Granola UUIDs, matching to *prior* project meetings by title/date. Use those UUIDs with `get_granola_transcript` — never use Calendar event IDs from `search_granola_events` directly. (Note: Granola transcript reads are the most likely source of budget overruns — cap at 3 transcripts.)
 
 - **1d. Google Doc dashboard** (if configured + OK): Read project dashboard tab for status, metrics, action items via `mcp__google_workspace__get_doc_content`.
 
@@ -378,9 +378,9 @@ After logging: "Run `/post-meeting` after this call to capture outcomes."
 | WhatsApp UNAVAILABLE (DB locked) | Skip; expand Gmail lookback to 2x; note in banner |
 | Gmail auth error | Retry once; if fails, note in banner |
 | Gmail rate limit (429) | Backoff and retry; if fails, note in banner |
-| Granola empty | Check for local transcripts; note in banner (may be normal) |
-| Granola HOLLOW | Note in banner: "Granola HOLLOW (documents exist but content empty — may need MCP restart)"; fall back to local transcripts |
-| Granola auth expired | Surface: "Open Granola app to refresh token"; skip Granola |
+| Granola empty (DEGRADED) | Check for local transcripts; note in banner (normal for new projects or upcoming meetings without prior project history) |
+| Granola 401 / auth expired | Surface: re-auth Granola per your provider's instructions; skip Granola |
+| Granola 429 (rate limit) | Backoff and skip if persistent |
 | Google Doc HOLLOW | Note in banner: "Google Doc nearly empty — may not be up to date"; use what content exists |
 | Google Doc 403 | Note "Doc permissions may have changed" in banner; skip |
 | Google Doc timeout | Note "Doc temporarily unavailable" in banner; skip |

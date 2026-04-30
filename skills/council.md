@@ -1,6 +1,6 @@
 # /council — Parallel Critics + Separate Synthesis
 
-*v1.2 — Added `--chef-skill` flag for hardcoded skill/tool-design panels (works out of box; no persona files required). v1.1 added `--mixed` flag to swap one Claude critic for a cross-vendor peer (Codex or Gemini). v1.0 base: dispatches N critic agents in parallel, runs a separate synthesis pass; hard cap 5; single-round only; never majority-votes on narrative output.*
+*v1.3 — Removed the Phase 4 "rate-limit advisory" line: it depended on response headers that aren't accessible under OAuth-only auth, so it printed "unavailable" on every run. The "Ctrl-C to abort" affordance was also phantom — print and dispatch happen in the same model turn, so there's no actual abort window. Replaced with a clean dispatch announcement: `$PANEL_NAME panel: dispatched N critics on $COUNCIL_CRITIC_MODEL`. v1.2 added `--chef-skill`. v1.1 added `--mixed` (cross-vendor peer). v1.0: dispatches N critic agents in parallel, runs a separate synthesis pass; hard cap 5; single-round only; never majority-votes on narrative output.*
 
 Dispatches N critic agents in parallel, collects raw outputs, and runs a separate synthesis pass. Hard cap of 5 critics. Single-round only. Never majority-votes on narrative output.
 
@@ -99,13 +99,18 @@ For each persona in the resolved panel, Glob both:
 
 If any persona file is missing, abort with a clear error listing the missing personas. **No silent fallback to `general-purpose`.** Skip this phase if `--chef-skill` is set.
 
-### Phase 4 — Rate-limit advisory
+### Phase 4 — Dispatch announcement
 
-Print one line before dispatching:
+Print one line before the parallel Task calls:
 
 ```
-Rate-limit advisory: unavailable (no API-key headers accessible). Dispatching N critics on $COUNCIL_CRITIC_MODEL. Ctrl-C to abort.
+$PANEL_NAME panel: dispatched N critics on $COUNCIL_CRITIC_MODEL
 ```
+
+No terminal period (this is a status line, not prose). `$PANEL_NAME` is one of `plan` / `paper` / `decision` / `grant` / `chef-skill`. If `$COUNCIL_CRITIC_MODEL` resolves to a long versioned string, display the short label (e.g., `opus-4.7`).
+
+<!-- v1.3: previous "Rate-limit advisory: unavailable…" line removed. The header-based advisory was structurally inert under OAuth-only auth, and "Ctrl-C to abort" was a phantom affordance (print and dispatch happen in the same model turn). If the harness later exposes rate-limit state via /status hook or env var, restore a real advisory here. -->
+
 
 ### Phase 4.5 — Peer swap (only if `--mixed` flag set)
 

@@ -1,5 +1,7 @@
 # Session Capture
 
+*v2.4.2 — Patch 0: structured cost-logging format for Step 6's performance log line — `mode:MODE session:SESSION files:FILES rule:RULE [optional description]` — so post-hoc cost analysis can group runs without parsing free-text NOTES. Patch 1 (private only): Step 0.5 Python extracted to a helper script; the public version keeps the Python inline.*
+*v2.4.1 — OSC-0 terminal-title escape wrapped in a brace-group `{ ... } 2>/dev/null` instead of `>/dev/tty 2>/dev/null`. The plain pattern leaks the open-error past `2>/dev/null` when the bash subprocess has no controlling terminal (any harness-spawned subshell), producing visible "device not configured: /dev/tty" noise. Brace-group silences it cleanly.*
 *v2.4 — Step 4's natural-language pruning logic is replaced with a single Bash call to a deterministic prune helper script. Closes the silent-skip gap where Brief / auto-quick runs let the model bypass pruning. Adds tiered cutoffs (>10k lines → 7d, >6k → 14d, >3k → 30d, >1.5k → 60d) so pruning actually fires under high-volume workflows. Background: the session log had drifted from ~3,000 to ~9,700 lines because /done's auto-quick path was implicitly treating Step 4 as skippable. Calling a single script replaces "the model decides whether to prune" with "the harness runs the prune unconditionally."*
 *v2.3 — Step 6 summary emits an OSC-0 terminal-title escape via `/dev/tty` after the captured-confirmation block. Editor tab title becomes `[<task-short>] done` (or `[no-anchor] done` for unanchored sessions). Phase 0 of a multi-terminal collision fix. Reaches the terminal via `/dev/tty` (controlling terminal); silent no-op when unavailable.*
 *v2.2 — Routing-audit row gains `state_set_by_user` and `state_set_on_hostname` columns (sourced from `active-subproject.json`). Step 0.5 forwards them; Step 5a routing-audit echo includes them. Schema bumps from 8-field to 10-field; readers tolerant of 7/8/10 by positional parse. Pure additive — no routing-logic change. Diagnostic for multi-terminal collision diagnosis.*
@@ -375,11 +377,14 @@ Next time: [most important follow-up item]
 **v2.3 — Phase 0 affordance.** After printing the summary, emit an OSC-0 terminal-title escape via `/dev/tty` so the editor tab strip shows `[<task-short>] done`. Source the task name from `SUBPROJECT_NAME` (Step 0.5 cache). Falls silently to no-op if `/dev/tty` is unwritable or not the controlling terminal.
 
 ```bash
+# v2.4.1: brace-group + outer 2>/dev/null silences "device not configured: /dev/tty" when the bash
+# subprocess has no controlling terminal (any harness-spawned subshell). The plain
+# `>/dev/tty 2>/dev/null` pattern leaks the open-error past 2>/dev/null.
 if [ -n "$SUBPROJECT_NAME" ]; then
   SHORT_NAME=$(echo "$SUBPROJECT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-20)
-  printf '\033]0;[%s] done\007' "$SHORT_NAME" > /dev/tty 2>/dev/null || true
+  { printf '\033]0;[%s] done\007' "$SHORT_NAME" >/dev/tty; } 2>/dev/null || true
 else
-  printf '\033]0;[no-anchor] done\007' > /dev/tty 2>/dev/null || true
+  { printf '\033]0;[no-anchor] done\007' >/dev/tty; } 2>/dev/null || true
 fi
 ```
 
@@ -412,4 +417,17 @@ fi
 echo "$(date +%Y-%m-%d),done,TOOL_CALLS,NOTES" >> ~/.claude-assistant/logs/skill-performance.csv
 ```
 
-Replace TOOL_CALLS with best estimate and NOTES with brief summary (e.g., "3-decisions-2-followups-handoff"). If this run exceeded the 40-call threshold, also append an anomaly row to a rate-limit-shadow CSV.
+Replace TOOL_CALLS with best estimate. **NOTES uses a structured format (v2.4.2) so post-hoc analysis can group runs without parsing free text:**
+
+`mode:MODE session:SESSION files:FILES rule:RULE [optional description]`
+
+| Field | Values |
+|-------|--------|
+| mode | `full` \| `quick` \| `auto-quick` |
+| session | `Brief` \| `Medium` \| `Extended` (from Step 1) |
+| files | integer count of files written this run |
+| rule | `1-cwd` \| `2-fresh` \| `2-divergent` \| `3-project-log` \| `4-global` \| `none` |
+
+Example: `mode:full session:Extended files:3 rule:1-cwd resolver-migration-deploy`
+
+If this run exceeded the 40-call threshold, also append an anomaly row to a rate-limit-shadow CSV.

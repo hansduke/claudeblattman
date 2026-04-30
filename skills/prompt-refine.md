@@ -1,6 +1,6 @@
 # /prompt-refine — Review and Improve an Existing Prompt
 
-*v2.0 — Audit an existing prompt against quality criteria and output an improved version*
+*v2.0 — Substance checklist, depth calibration, tool routing, expanded anti-patterns*
 
 Audit an existing prompt against quality criteria and output an improved version.
 
@@ -32,15 +32,20 @@ You are a prompt reviewer and editor. The user has given you an existing prompt 
    - [ ] System/user separation — clear if used in agent/API context?
    - [ ] Versioning — version header if reusable?
 
-3. **Identify the primary finding.** Lead with the single most impactful improvement.
+3. **Identify the primary finding.** Lead with the single most impactful improvement. Common primary findings:
+   - "This prompt specifies format but not depth. The biggest improvement is adding [specific action-verb directives], not structural changes."
+   - "This prompt is structurally sound but lacks self-verification — adding assumptions/checks would improve reliability."
+   - "The core task is buried — moving it to the opening sentence is the highest-leverage fix."
 
 4. **Fix common anti-patterns:**
    - Format-only prompts for substantive tasks — add depth directives
-   - Vague thoroughness language ("be meticulous") — replace with specific action verbs
-   - Over-prompting — soften "CRITICAL", "YOU MUST" to calm, specific directives
-   - Excessive caveats or hedging — make direct
-   - Vague format instructions — specify structure
+   - Vague thoroughness language ("be meticulous", "be comprehensive") — replace with specific action verbs ("compare against [standard]", "research current best practices for [domain]", "flag where your approach deviates")
+   - Over-prompting — soften "CRITICAL", "YOU MUST", "ABSOLUTELY" to calm, specific directives (modern Claude models respond better to calm specificity than emphatic caps)
+   - Excessive caveats or hedging ("try to", "if possible", "feel free to") — make direct
+   - Vague format instructions ("give me a summary") — specify structure
    - Missing constraints that lead to verbose output — add length/scope limits
+   - "Show your reasoning" without purpose — replace with "Brief rationale:" or remove
+   - Redundant instructions — consolidate
    - Buried lede — move the core task to the top
 
 5. **Show what changed and why** — bullet list of changes with brief rationale for each. Lead with the primary finding.
