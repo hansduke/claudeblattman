@@ -12,10 +12,17 @@ Generate a comprehensive daily morning briefing combining calendar, TickTick tas
   - JSON sync via `sync_calendar.py` to Google Drive (preferred, auto-syncs from Surface Pro)
   - PDF export to `~/.claude-assistant/inbox/calendar.pdf` (manual fallback)
 
+**Optional:**
+- **email-search rig** -- for Email Highlights section (VIP inbox, action-needed, meeting prep context)
+  - Location: `~/projects/code/email-search/`
+  - Requires: Ollama running locally, index populated via nightly ingest
+  - See `~/projects/code/email-search/email-rig.md` for integration details
+
 **Recommended:**
 - Config files (see First-Time Setup below):
   - `~/.claude-assistant/config/calendar-policy.md` -- working hours, city name, timezone, calendar paths
   - `~/.claude-assistant/config/goals.yaml` -- objectives and priorities for goal alignment
+  - `~/.claude-assistant/config/email-policy.md` -- VIP sender list for email highlights
 
 ## First-Time Setup
 
@@ -77,6 +84,8 @@ Generate a comprehensive daily morning briefing combining calendar, TickTick tas
 | **Goal alignment** | `goals.yaml` > objectives + key_results | Section omitted |
 | **Deep work push level** | `goals.yaml` > meta.push_level | `moderate` |
 | **Upcoming deadlines** | `goals.yaml` > upcoming_deadlines | Merged with TickTick |
+| **VIP senders** | `email-policy.md` > VIP List (Tier 1 & 2) | Section omitted if no rig |
+| **Email time window** | Hardcoded | 24 hours for inbox, 7 days for meeting prep |
 
 ## Arguments
 
@@ -85,8 +94,9 @@ Generate a comprehensive daily morning briefing combining calendar, TickTick tas
 - `pdf` -- generate PDF for reMarkable Color tablet
 - `tomorrow` -- show tomorrow's schedule/tasks instead of today
 - `no-tasks` -- skip the TickTick tasks phase
+- `no-email` -- skip the Email Highlights phase
 
-Multiple arguments can be combined: `pdf tomorrow`, etc.
+Multiple arguments can be combined: `pdf tomorrow`, `no-email no-tasks`, etc.
 
 ### PDF Output
 
@@ -135,6 +145,78 @@ Use the Read tool to read the PDF file and extract the same fields.
 **Error reporting:**
 - If JSON is stale: "Outlook calendar not synced (last sync: [date]) -- run sync_calendar.py on Surface Pro."
 - If both missing: "No calendar data available -- sync calendar.json from Surface Pro or export PDF to ~/.claude-assistant/inbox/calendar.pdf"
+
+### Phase 2.5: Email Highlights (skip if `no-email`)
+
+Pull recent email context from the email-search rig. This phase is optional -- skip gracefully if the rig is unavailable or Ollama isn't running.
+
+**2.5a. Check rig availability:**
+
+Test that the email-search rig is working:
+```bash
+~/projects/code/email-search/.venv/bin/python -m src.search_cli --top 1 "test query" 2>/dev/null
+```
+
+Exit code interpretation:
+- `0` -- rig is healthy, proceed
+- `3` -- integrity failure; add note to briefing: "Email index needs repair -- run verify_integrity.py"
+- `4` -- no index found; skip phase silently (ingest hasn't run yet)
+- Any other error -- skip phase silently (Ollama may not be running)
+
+If exit code ≠ 0 and ≠ 3, skip this entire phase without error message.
+
+**2.5b. Load VIP sender list:**
+
+Read `~/.claude-assistant/config/email-policy.md` if not already loaded in Phase 1.
+
+Extract email addresses from the VIP List tables (Tier 1 and Tier 2). Build a list of VIP email patterns for matching.
+
+If email-policy.md is missing or has no VIP entries, skip VIP matching but continue with action-needed detection.
+
+**2.5c. Query VIP emails (last 24 hours):**
+
+For each VIP sender (up to 10), run:
+```bash
+~/projects/code/email-search/.venv/bin/python -m src.search_cli \
+    --since 24h --top 2 --folder Inbox "from [VIP name or email]"
+```
+
+Collect results, deduplicate by email ID.
+
+**2.5d. Query action-needed emails:**
+
+Search for emails with action keywords:
+```bash
+~/projects/code/email-search/.venv/bin/python -m src.search_cli \
+    --since 24h --top 5 --folder Inbox "urgent OR deadline OR action needed OR review needed OR please respond OR EOD OR COB"
+```
+
+Filter results to exclude any already captured in VIP list.
+
+**2.5e. Meeting prep context:**
+
+Using attendee list from Phase 2 calendar data, identify unique attendee names/emails for today's meetings.
+
+For each attendee (up to 5 most frequent across meetings), search for recent correspondence:
+```bash
+~/projects/code/email-search/.venv/bin/python -m src.search_cli \
+    --since 7d --top 2 "from [attendee name]"
+```
+
+Pair each result with the meeting it's relevant to (match by attendee).
+
+**2.5f. Compile Email Highlights:**
+
+Build the Email Highlights data:
+- **VIP count**: Number of unique VIP emails in last 24h
+- **VIP emails**: List of {sender, subject, date, relative_time}
+- **Action count**: Number of action-needed emails
+- **Action emails**: List of {sender, subject, action_keyword}
+- **Meeting context**: List of {meeting_title, meeting_time, attendee, thread_subject}
+
+If all lists are empty, the section will show "No urgent emails in last 24 hours."
+
+**Security note:** Do not write email body content to disk. Snippets from search results are acceptable for display only.
 
 ### Phase 3: TickTick Tasks (skip if `no-tasks`)
 
@@ -276,6 +358,25 @@ Compose the briefing in this format. Omit sections with no data. Use tomorrow's 
 [If no events: "No events scheduled today"]
 **[N] hours free** (of [M] available, [start]-[end])
 
+## Email Highlights
+[If VIP emails found:]
+**VIP inbox** ([N] emails):
+- [sender]: [subject] ([relative time, e.g., "2h ago"])
+- ...
+
+[If action-needed emails found:]
+**Action needed** ([N]):
+- [subject] from [sender]
+- ...
+
+[If meeting attendees had recent threads:]
+**Meeting prep**:
+- [Meeting title] @ [time]: Recent thread with [attendee] -- "[subject snippet]"
+- ...
+
+[If email rig unavailable: omit entire section]
+[If no highlights: "No urgent emails in last 24 hours."]
+
 ## Hard Deadlines
   1. [task name] ([project]) (due [relative date]) !!
   ...
@@ -310,6 +411,10 @@ To adjust tasks: tell me "defer 3 to Monday" or "mark 5 complete"
 - **WebSearch fails**: Omit weather line.
 - **Config file missing**: Skip dependent sections, note in internal log.
 - **goals.yaml malformed**: Skip goal alignment section, continue with briefing.
+- **Email rig unavailable**: Skip Email Highlights section silently (graceful degradation).
+- **Email index integrity failure**: Note in briefing: "Email index needs repair -- run verify_integrity.py". Skip email section.
+- **Ollama not running**: Skip Email Highlights section silently.
+- **email-policy.md missing**: Skip VIP matching, but still show action-needed emails if rig is available.
 
 ## Examples
 
@@ -319,6 +424,8 @@ To adjust tasks: tell me "defer 3 to Monday" or "mark 5 complete"
 /morning-brief pdf tomorrow       # Tomorrow's PDF
 /morning-brief tomorrow           # Tomorrow's view (markdown)
 /morning-brief no-tasks           # Calendar only, skip TickTick
+/morning-brief no-email           # Skip email highlights (faster if Ollama is slow)
+/morning-brief no-tasks no-email  # Calendar and weather only
 ```
 
 ### Phase 7: PDF Generation (if `pdf` argument)
@@ -335,6 +442,19 @@ If the `pdf` argument was provided, generate a bullet-journal style PDF instead 
     "At-risk key results from goals.yaml",
     "Weather alerts if any"
   ],
+  "email_highlights": {
+    "vip_count": 3,
+    "vip_emails": [
+      {"sender": "Nathan Barankin", "subject": "RE: OCS board seat", "time": "2h ago"}
+    ],
+    "action_count": 1,
+    "action_emails": [
+      {"sender": "DOF", "subject": "Budget response needed by EOD"}
+    ],
+    "meeting_context": [
+      {"meeting": "BSCC Call", "time": "10:00", "attendee": "Sujie Shin", "thread": "Fellow placement update"}
+    ]
+  },
   "today_urgent": [
     {"title": "Task name", "project": "Project", "overdue": true, "high_priority": true, "days_info": "3 days overdue"}
   ],
@@ -357,12 +477,15 @@ If the `pdf` argument was provided, generate a bullet-journal style PDF instead 
 
 | Section | Content | Limit |
 |---------|---------|-------|
-| **top_of_mind** | Weather alerts, calendar conflicts, at-risk goals | 3-4 items |
+| **top_of_mind** | Weather alerts, calendar conflicts, at-risk goals, VIP email alerts | 3-4 items |
+| **email_highlights** | VIP emails, action-needed, meeting prep threads (from Phase 2.5) | 5 VIP, 3 action, 5 meeting |
 | **today_urgent** | Hard deadlines + high priority tasks, sorted by urgency (overdue days × priority) | 8-10 items |
 | **today_quick** | Tasks tagged "quick" OR email-related tasks | 5-6 items |
 | **projects** | Active projects sorted by open task count (exclude Someday, Pending, closed projects) | 6-8 projects |
 | **due_items** | Overdue + due today, sorted by days overdue (oldest first) | 8 items |
 | **pending_items** | Tasks from Pending project | 6-8 items |
+
+If email-search rig is unavailable, omit `email_highlights` from JSON entirely (template should handle missing key gracefully).
 
 **7c. Generate PDF:**
 Pipe the JSON to the generator script:
