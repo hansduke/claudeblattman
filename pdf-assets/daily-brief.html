@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Brief - {{ date_formatted }}</title>
+    <style>
+        @page {
+            size: 227mm 303mm;
+            margin: 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+            font-size: 9pt;
+            color: #000;
+        }
+
+        /* Header */
+        .header {
+            width: 100%;
+            height: 12mm;
+            border-bottom: 1pt solid #000;
+            margin-bottom: 4mm;
+        }
+
+        .header table {
+            width: 100%;
+            height: 100%;
+        }
+
+        .header td {
+            vertical-align: middle;
+        }
+
+        .header-date {
+            font-size: 14pt;
+            font-weight: bold;
+            letter-spacing: 1pt;
+        }
+
+        .week-days {
+            text-align: right;
+        }
+
+        .week-label {
+            font-size: 9pt;
+            color: #444;
+            margin-right: 8pt;
+        }
+
+        .day-box {
+            display: inline-block;
+            width: 16pt;
+            height: 16pt;
+            line-height: 16pt;
+            text-align: center;
+            font-size: 8pt;
+            background: #eee;
+            margin-left: 2pt;
+        }
+
+        .day-box.today {
+            background: #d4a012;
+            font-weight: bold;
+        }
+
+        .day-box.weekend {
+            background: #ccc;
+        }
+
+        /* Main layout table */
+        .main-table {
+            width: 100%;
+            height: 260mm;
+            border-collapse: collapse;
+        }
+
+        .main-table td {
+            vertical-align: top;
+            padding: 0;
+        }
+
+        .left-col {
+            width: 50%;
+            padding-right: 3mm;
+        }
+
+        .right-col {
+            width: 50%;
+            padding-left: 3mm;
+        }
+
+        /* Section boxes */
+        .section {
+            border: 0.5pt solid #333;
+            margin-bottom: 3mm;
+            overflow: hidden;
+        }
+
+        .section-title {
+            font-size: 8pt;
+            font-weight: bold;
+            letter-spacing: 2pt;
+            text-transform: uppercase;
+            padding: 2mm 3mm;
+            border-bottom: 0.5pt solid #ccc;
+            background: #fafafa;
+        }
+
+        .section-content {
+            padding: 2mm 3mm;
+        }
+
+        /* Item rows */
+        .item {
+            padding: 1.5mm 0;
+            border-bottom: 0.25pt dotted #ccc;
+            overflow: hidden;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .item-table td {
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .item-title {
+            width: 70%;
+        }
+
+        .item-meta {
+            width: 30%;
+            text-align: right;
+            font-size: 7pt;
+            color: #555;
+        }
+
+        .overdue {
+            color: #c00;
+        }
+
+        .priority-mark {
+            color: #c00;
+            font-weight: bold;
+        }
+
+        /* Calendar */
+        .calendar .section-title {
+            color: #1e40af;
+        }
+
+        .event-time {
+            display: inline-block;
+            width: 18mm;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Today */
+        .today-section .section-title {
+            color: #15803d;
+        }
+
+        .subsection-header {
+            font-size: 7pt;
+            font-weight: bold;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1pt;
+            padding: 2mm 0 1mm 0;
+            border-bottom: 0.25pt dashed #aaa;
+            margin-bottom: 1mm;
+        }
+
+        /* Projects */
+        .task-count {
+            display: inline-block;
+            font-size: 7pt;
+            background: #ddd;
+            padding: 0.5pt 4pt;
+            border-radius: 6pt;
+        }
+
+        /* Due */
+        .due-section .section-title {
+            color: #b91c1c;
+        }
+
+        /* Pending */
+        .pending-section .section-title {
+            color: #7e22ce;
+        }
+
+        /* Ideas */
+        .ideas-lines {
+            height: 50mm;
+            background-image: repeating-linear-gradient(
+                #fff 0mm,
+                #fff 5mm,
+                #ccc 5mm,
+                #ccc 5.3mm
+            );
+        }
+
+        .empty {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <table>
+            <tr>
+                <td><span class="header-date">{{ day_name }} {{ day }} | {{ month_name }}</span></td>
+                <td class="week-days">
+                    <span class="week-label">W{{ week_number }}</span>
+                    {% for d in week_days %}
+                    <span class="day-box{% if d.is_today %} today{% endif %}{% if d.is_weekend %} weekend{% endif %}">{{ d.day }}</span>
+                    {% endfor %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Main two-column layout -->
+    <table class="main-table">
+        <tr>
+            <td class="left-col">
+                <!-- Calendar -->
+                <div class="section calendar">
+                    <div class="section-title">Calendar</div>
+                    <div class="section-content">
+                        {% if calendar_events %}
+                        {% for event in calendar_events %}
+                        <div class="item">
+                            <span class="event-time">{{ event.time }}</span>
+                            <span>{{ event.title }}</span>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="item empty">No calendar synced</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Today -->
+                <div class="section today-section">
+                    <div class="section-title">Today</div>
+                    <div class="section-content">
+                        <div class="subsection-header">Highest Urgency</div>
+                        {% for task in today_urgent %}
+                        <div class="item{% if task.overdue %} overdue{% endif %}">
+                            <table class="item-table">
+                                <tr>
+                                    <td class="item-title">{% if task.high_priority %}<span class="priority-mark">! </span>{% endif %}{{ task.title }}</td>
+                                    <td class="item-meta">{{ task.project }}{% if task.days_info %} · {{ task.days_info }}{% endif %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endfor %}
+                        {% if not today_urgent %}
+                        <div class="item empty">No urgent items</div>
+                        {% endif %}
+
+                        <div class="subsection-header">Quick Wins</div>
+                        {% for task in today_quick %}
+                        <div class="item">
+                            <table class="item-table">
+                                <tr>
+                                    <td class="item-title">{{ task.title }}</td>
+                                    <td class="item-meta">{{ task.project }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endfor %}
+                        {% if not today_quick %}
+                        <div class="item empty">No quick wins</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
+
+            <td class="right-col">
+                <!-- Projects -->
+                <div class="section">
+                    <div class="section-title">Projects</div>
+                    <div class="section-content">
+                        {% for project in projects %}
+                        <div class="item">
+                            <table class="item-table">
+                                <tr>
+                                    <td class="item-title">{{ project.name }}</td>
+                                    <td class="item-meta"><span class="task-count">{{ project.task_count }}</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endfor %}
+                        {% if not projects %}
+                        <div class="item empty">No active projects</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Due -->
+                <div class="section due-section">
+                    <div class="section-title">Due</div>
+                    <div class="section-content">
+                        {% for task in due_items %}
+                        <div class="item overdue">
+                            <table class="item-table">
+                                <tr>
+                                    <td class="item-title">{{ task.title }}</td>
+                                    <td class="item-meta">{{ task.days_info }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endfor %}
+                        {% if not due_items %}
+                        <div class="item empty">Nothing due</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Pending -->
+                <div class="section pending-section">
+                    <div class="section-title">Pending</div>
+                    <div class="section-content">
+                        {% for task in pending_items %}
+                        <div class="item">{{ task.title }}</div>
+                        {% endfor %}
+                        {% if not pending_items %}
+                        <div class="item empty">Nothing pending</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Ideas -->
+                <div class="section">
+                    <div class="section-title">Ideas</div>
+                    <div class="section-content">
+                        <div class="ideas-lines"></div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
