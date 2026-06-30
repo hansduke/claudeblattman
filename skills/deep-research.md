@@ -196,12 +196,38 @@ If a permission denial still occurs at runtime, detect via the literal string "P
 
 **`--tool gemini`** — Single Bash call to Gemini 2.5 Pro CLI (fully automatic; NOT the browser Deep Research product — that's `--tool gemini-deep`). Model pinning matters: the OAuth default is `gemini-2.5-flash-lite`, which is materially weaker.
 
+> ⚠️ **Pipe the prompt via STDIN, never `-p "$(cat prompt.md)"`.** The DR prompt file begins
+> with a `---` YAML frontmatter line. Handed to `-p`, the CLI's yargs parser sees a value
+> starting with `-`, treats `-p` as having NO argument, dies with `Not enough arguments
+> following: p`, and writes a 0-byte output — the flash fallback then ALSO fails the same way
+> (verified CLI v0.42.0, 2026-06-30). Pipe the file on stdin and give `-p` a short non-dash
+> instruction; stdin is appended to the `-p` prompt. (`--output-format json` IS supported in
+> v0.42.0 even though it is absent from `--help`.)
+
 ```bash
-"$GEMINI_BIN" -p "$(cat /tmp/dr-prompt-$RUN_ID.md)" -m gemini-2.5-pro \
-  --output-format "$GEMINI_OUTPUT_FORMAT" \
-  > /tmp/dr-gemini-$RUN_ID.json 2>/tmp/dr-gemini-$RUN_ID.stderr
-GEMINI_EXIT=$?
+GEMINI_INSTR="Execute the following deep-research prompt completely and end-to-end. Use your web/search tools to gather live primary sources. Output ONLY the finished markdown report in the structure the prompt specifies, including a numbered Sources section with real URLs. Do not fabricate citations. The prompt follows on stdin:"
+
+run_gemini () {  # $1 = model
+  cat /tmp/dr-prompt-$RUN_ID.md | GEMINI_CLI_TRUST_WORKSPACE=true "$GEMINI_BIN" \
+    -p "$GEMINI_INSTR" -m "$1" --output-format "$GEMINI_OUTPUT_FORMAT" \
+    > /tmp/dr-gemini-$RUN_ID.json 2>/tmp/dr-gemini-$RUN_ID.stderr
+}
+
+GEMINI_MODEL_USED=gemini-2.5-pro
+run_gemini gemini-2.5-pro; GEMINI_EXIT=$?
 jq -r '.response' /tmp/dr-gemini-$RUN_ID.json > /tmp/dr-gemini-$RUN_ID.md 2>/dev/null
+
+# Flash fallback: if pro is unavailable (free-tier/quota/billing-propagation), retry once on
+# gemini-2.5-flash so the arm still produces output instead of dropping. Trigger on a pro
+# TerminalQuotaError OR a nonzero exit with empty parsed output.
+if grep -qi "TerminalQuotaError\|free_tier\|RESOURCE_EXHAUSTED" /tmp/dr-gemini-$RUN_ID.stderr \
+   || { [ "$GEMINI_EXIT" -ne 0 ] && [ ! -s /tmp/dr-gemini-$RUN_ID.md ]; }; then
+  GEMINI_MODEL_USED=gemini-2.5-flash
+  run_gemini gemini-2.5-flash; GEMINI_EXIT=$?
+  jq -r '.response' /tmp/dr-gemini-$RUN_ID.json > /tmp/dr-gemini-$RUN_ID.md 2>/dev/null
+  echo "NOTE: gemini-2.5-pro unavailable; fell back to gemini-2.5-flash for this run."
+fi
+# Record GEMINI_MODEL_USED as the `model:` value in Phase 4 frontmatter (pro vs flash).
 ```
 
 If `$GEMINI_BIN` is empty, skip with note ("Gemini CLI not installed; run `npm install -g @google/gemini-cli`"). Do not silently fall back to paste-loop.

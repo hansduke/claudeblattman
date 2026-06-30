@@ -152,21 +152,39 @@ CODEX_USAGE_LOG=~/.claude-assistant/logs/codex-usage.csv
 Used by `/deep-research --tool gemini|all-auto` and any future peer-dispatch skill.
 
 ```bash
-GEMINI_BIN=$(command -v gemini)                # installed via: npm install -g @google/gemini-cli
+GEMINI_BIN=$(command -v gemini)                # installed via: npm install -g @google/gemini-cli  (v0.42 verified)
 GEMINI_OUTPUT_FORMAT=json                       # produces {"response": "..."} schema at current versions
 # OAuth default model is gemini-2.5-flash-lite. Always pass -m gemini-2.5-pro explicitly
 # for long-context work, or you silently get the weaker model.
 # Model pinning under OAuth is best-effort; for guaranteed model selection migrate to API-key auth.
 
+# REQUIRED env (v0.42+): GEMINI_CLI_TRUST_WORKSPACE=true — headless runs from an untrusted
+# cwd (e.g. the Google Drive vault path) otherwise exit 55 with a "not a trusted directory"
+# error BEFORE any API call. Always export it in the dispatch.
+
 # Dispatch shape (-p is REQUIRED; positional hangs interactive):
-#   "$GEMINI_BIN" -p "$PROMPT" -m gemini-2.5-pro --output-format "$GEMINI_OUTPUT_FORMAT" > "$OUT"
-# For document input, pipe via stdin:
-#   cat "$DOC" | "$GEMINI_BIN" -p "$PROMPT" -m gemini-2.5-pro --output-format json > "$OUT"
+# CRITICAL — pipe the prompt FILE on stdin; do NOT pass it as -p "$(cat prompt.md)". A prompt
+# whose first line is `---` (YAML frontmatter — which every /deep-research prompt file has) makes
+# yargs read the leading `-` as a flag, so -p gets NO value and the CLI dies with
+# `Not enough arguments following: p`, writing a 0-byte file (verified v0.42.0, 2026-06-30).
+# Give -p a short non-dash instruction and pipe the document on stdin (stdin is appended to -p):
+#   cat "$PROMPT_FILE" | GEMINI_CLI_TRUST_WORKSPACE=true "$GEMINI_BIN" \
+#     -p "Execute the following prompt and output only the finished report:" \
+#     -m gemini-2.5-pro --output-format "$GEMINI_OUTPUT_FORMAT" > "$OUT"
 # Parse: jq -r .response "$OUT"   (verify schema at install; may differ across versions)
 # NOTE: No -f / --file flag exists in CLI v0.38+. Use stdin for document content.
+# NOTE: --output-format json works in v0.42.0 despite being absent from `gemini --help`.
 
-# Auth quota: free OAuth tier = 60 RPM / 1,000 RPD.
+# Auth quota: free OAuth tier nominal = 60 RPM / 1,000 RPD, BUT the gemini-2.5-pro daily
+# allotment is far smaller and exhausts fast — verified 2026-06-19: pro returned
+# TerminalQuotaError while gemini-2.5-flash still served. Treat the free tier as a
+# flash-grade arm; for a reliable pro arm, use API-key auth (see below).
 # NOTE: Consumer Gemini Advanced subscriptions do NOT raise CLI quota.
+
+# API-key auth (unlocks reliable gemini-2.5-pro; metered, ~$0.15–0.30 per deep-research run):
+#   export GEMINI_API_KEY=...        # from https://aistudio.google.com/apikey
+# When GEMINI_API_KEY is set the CLI uses it instead of OAuth and bills pay-per-token
+# (gemini-2.5-pro ≤200k ctx: $1.25/M in, $10/M out incl. thinking — verify ai.google.dev/pricing).
 ```
 
 ## Grok CLI (optional, paste-loop alternative)
